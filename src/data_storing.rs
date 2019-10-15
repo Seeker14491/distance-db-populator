@@ -6,8 +6,11 @@ use futures::{
     StreamExt, TryFutureExt, TryStreamExt,
 };
 use steamworks::ugc::PublishedFileVisibility;
+use tokio_postgres::error::SqlState;
 
 pub async fn run(mut db: tokio_postgres::Client, data: DistanceData) -> Result<(), Error> {
+    db.batch_execute("BEGIN").await?;
+
     println!("Clearing the database");
     db.batch_execute("TRUNCATE levels, users CASCADE").await?;
 
@@ -135,6 +138,27 @@ pub async fn run(mut db: tokio_postgres::Client, data: DistanceData) -> Result<(
         .for_each(drop);
 
     futs.try_collect().await?;
+
+    println!("Updating 'last_updated' timestamp");
+    update_timestamp(&mut db).await?;
+
+    db.batch_execute("COMMIT").await?;
+
+    Ok(())
+}
+
+async fn update_timestamp(db: &mut tokio_postgres::Client) -> Result<(), Error> {
+    let result = db
+        .batch_execute("INSERT INTO metadata (last_updated) VALUES (now())")
+        .await;
+    match result {
+        Ok(_) => return Ok(()),
+        Err(e) if e.code() != Some(&SqlState::UNIQUE_VIOLATION) => return Err(e.into()),
+        _ => {}
+    }
+
+    db.batch_execute("UPDATE metadata SET last_updated = now()")
+        .await?;
 
     Ok(())
 }
