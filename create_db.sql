@@ -85,6 +85,19 @@ ALTER SEQUENCE public.levels_id_seq OWNED BY public.levels.id;
 
 
 --
+-- Name: metadata; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.metadata (
+    onerow_id boolean DEFAULT true NOT NULL,
+    last_updated timestamp with time zone,
+    CONSTRAINT onerow CHECK (onerow_id)
+);
+
+
+ALTER TABLE public.metadata OWNER TO postgres;
+
+--
 -- Name: sprint_leaderboard_entries; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -174,6 +187,14 @@ ALTER TABLE ONLY public.challenge_leaderboard_entries
 
 ALTER TABLE ONLY public.levels
     ADD CONSTRAINT levels_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: metadata metadata_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.metadata
+    ADD CONSTRAINT metadata_pkey PRIMARY KEY (onerow_id);
 
 
 --
@@ -291,6 +312,55 @@ ALTER TABLE ONLY public.workshop_level_details
 
 ALTER TABLE ONLY public.workshop_level_details
     ADD CONSTRAINT workshop_level_details_level_id_fkey FOREIGN KEY (level_id) REFERENCES public.levels(id);
+
+
+--
+-- Name: TABLE challenge_leaderboard_entries; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.challenge_leaderboard_entries TO reader;
+
+
+--
+-- Name: TABLE levels; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.levels TO reader;
+
+
+--
+-- Name: TABLE metadata; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.metadata TO reader;
+
+
+--
+-- Name: TABLE sprint_leaderboard_entries; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.sprint_leaderboard_entries TO reader;
+
+
+--
+-- Name: TABLE stunt_leaderboard_entries; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.stunt_leaderboard_entries TO reader;
+
+
+--
+-- Name: TABLE users; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.users TO reader;
+
+
+--
+-- Name: TABLE workshop_level_details; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.workshop_level_details TO reader;
 
 
 --
