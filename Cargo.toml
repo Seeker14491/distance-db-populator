@@ -7,14 +7,14 @@ edition = "2018"
 [dependencies]
 chrono = "0.4.9"
 color-backtrace = "0.2.3"
-distance-util = { git = "https://github.com/Seeker14491/distance-util.git", tag = "v0.0.5"}
+distance-util = { git = "https://github.com/Seeker14491/distance-util.git", tag = "v0.1.0"}
 dotenv = "0.14.1"
 env_logger = "0.7.0"
-failure = "0.1.5"
+failure = "0.1.6"
 futures-preview = "0.3.0-alpha.19"
 indicatif = "0.12.0"
 log = "0.4.8"
 num-traits = "0.2.8"
 steamworks = { git = "https://github.com/Seeker14491/steamworks-rs.git", tag = "v0.0.10" }
 tokio = "0.2.0-alpha.6"
-tokio-postgres = { git = "https://github.com/sfackler/rust-postgres.git", features = ["with-chrono-0_4"] }
+tokio-postgres = { git = "https://github.com/sfackler/rust-postgres.git", rev = "e0e8c45159f6c255893e9cb4e1e7b7a20668b182", features = ["with-chrono-0_4"] }

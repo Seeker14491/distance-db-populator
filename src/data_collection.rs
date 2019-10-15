@@ -1,5 +1,5 @@
 use crate::common::{DistanceData, Level, User};
-use distance_util::{enumflags2::BitFlags, LeaderboardGameMode};
+use distance_util::LeaderboardGameMode;
 use failure::Error;
 use futures::{future, stream, stream::FuturesUnordered, StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
@@ -12,8 +12,12 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
     let mut data = DistanceData::new();
 
     let mut official_levels: HashMap<&'static str, Level> = HashMap::new();
-    for game_mode in BitFlags::<LeaderboardGameMode>::all().iter() {
-        for &level_name in game_mode.official_levels() {
+    for game_mode in &[
+        LeaderboardGameMode::Sprint,
+        LeaderboardGameMode::Challenge,
+        LeaderboardGameMode::Stunt,
+    ] {
+        for &level_name in game_mode.official_level_names() {
             let entry = official_levels.entry(level_name).or_insert(Level {
                 name: level_name.to_owned(),
                 is_sprint: false,
