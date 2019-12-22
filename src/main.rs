@@ -2,7 +2,6 @@
     rust_2018_idioms,
     deprecated_in_future,
     missing_debug_implementations,
-    unused_labels,
     unused_qualifications,
     clippy::cast_possible_truncation
 )]
@@ -12,35 +11,16 @@ mod data_collection;
 mod data_storing;
 
 use crate::common::DistanceData;
-use failure::{format_err, Error, ResultExt};
+use anyhow::{anyhow, Context, Error};
 use futures::prelude::*;
-use log::error;
-use std::{env, process};
+use std::env;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Error> {
     color_backtrace::install();
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
-    if let Err(e) = run().await {
-        print_error(e);
-        process::exit(-1);
-    }
-}
-
-fn print_error<E: Into<Error>>(err: E) {
-    let err = err.into();
-    let mut err_msg = format!("error: {}", err);
-    for err in err.iter_causes() {
-        err_msg.push_str(&format!("\ncaused by: {}", err));
-    }
-
-    error!("{}\n{}", err_msg, err.backtrace());
-}
-
-async fn run() -> Result<(), Error> {
     let steam = steamworks::Client::init()?;
-    let db = establish_connection().await?;
+    let mut db = establish_connection().await?;
 
     let distance_data = data_collection::run(steam)
         .await
@@ -48,11 +28,12 @@ async fn run() -> Result<(), Error> {
 
     print_stats(&distance_data);
 
-    data_storing::run(db, distance_data)
+    data_storing::run(&mut db, distance_data)
         .await
         .context("error storing data")?;
 
     println!("Finished successfully.");
+
     Ok(())
 }
 
@@ -67,7 +48,7 @@ async fn establish_connection() -> Result<tokio_postgres::Client, Error> {
 
     let connection = connection.map(|r| {
         if let Err(e) = r {
-            print_error(format_err!("connection error: {}", e));
+            eprintln!("{}", anyhow!("connection error: {}", e));
         }
     });
     tokio::spawn(connection);

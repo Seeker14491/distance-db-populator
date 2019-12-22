@@ -1,6 +1,6 @@
 use crate::common::{DistanceData, Level, User};
+use anyhow::Error;
 use distance_util::LeaderboardGameMode;
-use failure::Error;
 use futures::{future, stream, stream::FuturesUnordered, StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use std::collections::{HashMap, HashSet};
