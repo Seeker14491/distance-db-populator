@@ -1,7 +1,7 @@
-use crate::common::{DistanceData, Level, User};
+use crate::common::{DistanceData, Level, ScoreLeaderboardEntry, TimeLeaderboardEntry, User};
 use anyhow::Error;
 use distance_util::LeaderboardGameMode;
-use futures::{future, stream, stream::FuturesUnordered, StreamExt, TryStreamExt};
+use futures::{future, stream::FuturesUnordered, StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use std::collections::{HashMap, HashSet};
 use steamworks::{ugc::MatchingUgcType, user_stats::LeaderboardEntry};
@@ -73,41 +73,64 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
 
     println!("Downloading Sprint leaderboard entries");
     {
-        let entries =
-            get_mode_entries(&steam, &mut data.levels, LeaderboardGameMode::Sprint, |l| {
-                l.is_sprint
-            })
-            .await;
+        let entries = get_mode_entries(&steam, &data.levels, LeaderboardGameMode::Sprint, |l| {
+            l.is_sprint
+        })
+        .await;
 
-        for (i, entry) in entries {
-            data.levels[i].sprint_entries.push(entry);
+        for (i, level_entries_raw) in entries {
+            let level_entries =
+                level_entries_raw
+                    .into_iter()
+                    .map(|(entry, rank)| TimeLeaderboardEntry {
+                        steam_id: entry.steam_id.into(),
+                        time: entry.score,
+                        rank,
+                    });
+
+            data.levels[i].sprint_entries.extend(level_entries);
         }
     }
 
     println!("Downloading Challenge leaderboard entries");
     {
-        let entries = get_mode_entries(
-            &steam,
-            &mut data.levels,
-            LeaderboardGameMode::Challenge,
-            |l| l.is_challenge,
-        )
+        let entries = get_mode_entries(&steam, &data.levels, LeaderboardGameMode::Challenge, |l| {
+            l.is_challenge
+        })
         .await;
 
-        for (i, entry) in entries {
-            data.levels[i].challenge_entries.push(entry);
+        for (i, level_entries_raw) in entries {
+            let level_entries =
+                level_entries_raw
+                    .into_iter()
+                    .map(|(entry, rank)| TimeLeaderboardEntry {
+                        steam_id: entry.steam_id.into(),
+                        time: entry.score,
+                        rank,
+                    });
+
+            data.levels[i].challenge_entries.extend(level_entries);
         }
     }
 
     println!("Downloading Stunt leaderboard entries");
     {
-        let entries = get_mode_entries(&steam, &mut data.levels, LeaderboardGameMode::Stunt, |l| {
+        let entries = get_mode_entries(&steam, &data.levels, LeaderboardGameMode::Stunt, |l| {
             l.is_stunt
         })
         .await;
 
-        for (i, entry) in entries {
-            data.levels[i].stunt_entries.push(entry);
+        for (i, level_entries_raw) in entries {
+            let level_entries =
+                level_entries_raw
+                    .into_iter()
+                    .map(|(entry, rank)| ScoreLeaderboardEntry {
+                        steam_id: entry.steam_id.into(),
+                        score: entry.score,
+                        rank,
+                    });
+
+            data.levels[i].stunt_entries.extend(level_entries);
         }
     }
 
@@ -181,17 +204,19 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
     Ok(data)
 }
 
-async fn get_mode_entries<T>(
+/// Returns the leaderboard entries for the specified `game_mode`.
+///
+/// The return value is a vec of tuples, where each tuple consists of 1. an
+/// index into the passed-in `levels` slice, and 2. a vec containing all
+/// entries for that particular level, together with the rank for each entry.
+async fn get_mode_entries(
     steam: &steamworks::Client,
     levels: &[Level],
     game_mode: LeaderboardGameMode,
     game_mode_predicate: impl Fn(&Level) -> bool,
-) -> Vec<(usize, T)>
-where
-    T: From<LeaderboardEntry>,
-{
+) -> Vec<(usize, Vec<(LeaderboardEntry, u32)>)> {
     let pb = ProgressBar::new_spinner();
-    let entries: Vec<(usize, T)> = levels
+    let entries: Vec<(usize, Vec<(LeaderboardEntry, u32)>)> = levels
         .iter()
         .enumerate()
         .filter_map(|(i, level)| {
@@ -222,13 +247,29 @@ where
                     .find_leaderboard(leaderboard_name_string.clone())
                     .await;
                 if let Ok(leaderboard) = leaderboard {
-                    Some(
-                        leaderboard
-                            .download_global(1, MAX_LEADERBOARD_RANK_TO_DOWNLOAD, 0)
-                            .await
-                            .into_iter()
-                            .map(move |entry| (i, T::from(entry))),
-                    )
+                    let level_entries = leaderboard
+                        .download_global(1, MAX_LEADERBOARD_RANK_TO_DOWNLOAD, 0)
+                        .await;
+
+                    let mut level_entries_with_rank = Vec::with_capacity(level_entries.len());
+                    let mut level_entries = level_entries.into_iter();
+
+                    if let Some(entry) = level_entries.next() {
+                        let mut prev_score = entry.score;
+                        let mut prev_rank = 1;
+                        level_entries_with_rank.push((entry, 1));
+                        for (entry, position) in level_entries.zip(2..) {
+                            let tied_previous = entry.score == prev_score;
+
+                            let rank = if tied_previous { prev_rank } else { position };
+
+                            prev_score = entry.score;
+                            prev_rank = rank;
+                            level_entries_with_rank.push((entry, rank));
+                        }
+                    }
+
+                    Some((i, level_entries_with_rank))
                 } else {
                     None
                 }
@@ -236,8 +277,7 @@ where
         })
         .collect::<FuturesUnordered<_>>()
         .inspect(|_| pb.tick())
-        .filter_map(|x| future::ready(x.map(stream::iter)))
-        .flatten()
+        .filter_map(future::ready)
         .collect()
         .await;
 

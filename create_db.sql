@@ -40,7 +40,9 @@ SET default_table_access_method = heap;
 CREATE TABLE public.challenge_leaderboard_entries (
     level_id integer NOT NULL,
     steam_id bigint NOT NULL,
-    "time" integer NOT NULL
+    "time" integer NOT NULL,
+    rank integer NOT NULL,
+    CONSTRAINT challenge_leaderboard_entries_rank_check CHECK ((rank > 0))
 );
 
 
@@ -104,7 +106,9 @@ ALTER TABLE public.metadata OWNER TO postgres;
 CREATE TABLE public.sprint_leaderboard_entries (
     level_id integer NOT NULL,
     steam_id bigint NOT NULL,
-    "time" integer NOT NULL
+    "time" integer NOT NULL,
+    rank integer NOT NULL,
+    CONSTRAINT sprint_leaderboard_entries_rank_check CHECK ((rank > 0))
 );
 
 
@@ -117,7 +121,9 @@ ALTER TABLE public.sprint_leaderboard_entries OWNER TO postgres;
 CREATE TABLE public.stunt_leaderboard_entries (
     level_id integer NOT NULL,
     steam_id bigint NOT NULL,
-    score integer NOT NULL
+    score integer NOT NULL,
+    rank integer NOT NULL,
+    CONSTRAINT stunt_leaderboard_entries_rank_check CHECK ((rank > 0))
 );
 
 

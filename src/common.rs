@@ -1,4 +1,4 @@
-use steamworks::{ugc::UgcDetails, user_stats::LeaderboardEntry};
+use steamworks::ugc::UgcDetails;
 
 #[derive(Debug, Clone, Default)]
 pub struct DistanceData {
@@ -28,30 +28,14 @@ pub struct Level {
 pub struct TimeLeaderboardEntry {
     pub steam_id: u64,
     pub time: i32,
-}
-
-impl From<LeaderboardEntry> for TimeLeaderboardEntry {
-    fn from(raw: LeaderboardEntry) -> Self {
-        TimeLeaderboardEntry {
-            steam_id: raw.steam_id.into(),
-            time: raw.score,
-        }
-    }
+    pub rank: u32,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct ScoreLeaderboardEntry {
     pub steam_id: u64,
     pub score: i32,
-}
-
-impl From<LeaderboardEntry> for ScoreLeaderboardEntry {
-    fn from(raw: LeaderboardEntry) -> Self {
-        ScoreLeaderboardEntry {
-            steam_id: raw.steam_id.into(),
-            score: raw.score,
-        }
-    }
+    pub rank: u32,
 }
 
 #[derive(Debug, Clone)]
