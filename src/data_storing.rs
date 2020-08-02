@@ -171,19 +171,21 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
             .batch_execute("INSERT INTO metadata (last_updated) VALUES (now())")
             .await;
         match result {
+            // No timestamp existed
             Ok(_) => {
                 tr_2.commit().await?;
-                return Ok(());
             }
-            Err(e) if e.code() != Some(&SqlState::UNIQUE_VIOLATION) => {
-                tr_2.commit().await?;
+            // Timestamp already existed
+            Err(e) if e.code() == Some(&SqlState::UNIQUE_VIOLATION) => {
+                tr_2.rollback().await?;
+                tr.batch_execute("UPDATE metadata SET last_updated = now()")
+                    .await?;
+            }
+            // Some other error
+            Err(e) => {
                 return Err(e.into());
             }
-            _ => tr_2.rollback().await?,
         }
-
-        tr.batch_execute("UPDATE metadata SET last_updated = now()")
-            .await?;
     }
 
     tr_owned.commit().await?;

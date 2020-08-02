@@ -1,9 +1,9 @@
 #![warn(
     rust_2018_idioms,
     deprecated_in_future,
+    macro_use_extern_crate,
     missing_debug_implementations,
-    unused_qualifications,
-    clippy::cast_possible_truncation
+    unused_qualifications
 )]
 
 mod common;
@@ -19,12 +19,15 @@ use std::env;
 async fn main() -> Result<(), Error> {
     color_backtrace::install();
 
-    let steam = steamworks::Client::init()?;
     let mut db = establish_connection().await?;
 
-    let distance_data = data_collection::run(steam)
-        .await
-        .context("error acquiring data")?;
+    let distance_data = {
+        let steam = steamworks::Client::init()?;
+
+        data_collection::run(steam)
+            .await
+            .context("error acquiring data")?
+    };
 
     print_stats(&distance_data);
 

@@ -137,10 +137,8 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
         }
     }
 
+    // Resolve Player and Author names
     {
-        let pb = ProgressBar::new_spinner();
-        pb.set_message("Resolving player + author names");
-
         let mut users = HashSet::new();
 
         // Level authors
@@ -180,12 +178,15 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
                 users.insert(steam_id.into());
             });
 
+        println!("Resolving player + author names");
+        let pb = &ProgressBar::new(users.len() as u64);
         users
             .into_iter()
             .map(|steam_id| {
                 let steam = steam.clone();
                 async move {
                     let name = steam_id.persona_name(&steam).await;
+                    pb.inc(1);
 
                     User {
                         steam_id: steam_id.into(),
@@ -218,8 +219,7 @@ async fn get_mode_entries(
     game_mode: LeaderboardGameMode,
     game_mode_predicate: impl Fn(&Level) -> bool,
 ) -> Vec<(usize, Vec<(LeaderboardEntry, u32)>)> {
-    let pb = ProgressBar::new_spinner();
-    let entries: Vec<(usize, Vec<(LeaderboardEntry, u32)>)> = levels
+    let mode_level_leaderboard_names: Vec<_> = levels
         .iter()
         .enumerate()
         .filter_map(|(i, level)| {
@@ -243,6 +243,11 @@ async fn get_mode_entries(
 
             leaderboard_name_string.map(|s| (i, s))
         })
+        .collect();
+
+    let pb = ProgressBar::new(mode_level_leaderboard_names.len() as u64);
+    let entries: Vec<(usize, Vec<(LeaderboardEntry, u32)>)> = mode_level_leaderboard_names
+        .into_iter()
         .map(|(i, leaderboard_name_string)| {
             let steam = steam.clone();
             async move {
@@ -279,7 +284,7 @@ async fn get_mode_entries(
             }
         })
         .collect::<FuturesUnordered<_>>()
-        .inspect(|_| pb.tick())
+        .inspect(|_| pb.inc(1))
         .filter_map(future::ready)
         .collect()
         .await;
