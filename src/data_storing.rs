@@ -61,13 +61,13 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
         .prepare("INSERT INTO workshop_level_details VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)")
         .await?;
     let sprint_stmt = &tr
-        .prepare("INSERT INTO sprint_leaderboard_entries VALUES ($1, $2, $3, $4)")
+        .prepare("INSERT INTO sprint_leaderboard_entries VALUES ($1, $2, $3, $4, $5)")
         .await?;
     let challenge_stmt = &tr
-        .prepare("INSERT INTO challenge_leaderboard_entries VALUES ($1, $2, $3, $4)")
+        .prepare("INSERT INTO challenge_leaderboard_entries VALUES ($1, $2, $3, $4, $5)")
         .await?;
     let stunt_stmt = &tr
-        .prepare("INSERT INTO stunt_leaderboard_entries VALUES ($1, $2, $3, $4)")
+        .prepare("INSERT INTO stunt_leaderboard_entries VALUES ($1, $2, $3, $4, $5)")
         .await?;
     let futs = FuturesUnordered::new();
     level_ids
@@ -114,6 +114,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                             &(entry.steam_id as i64),
                             &entry.time,
                             &(entry.rank as i32),
+                            &entry.has_replay,
                         ],
                     )
                     .map_ok(drop)
@@ -131,6 +132,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                             &(entry.steam_id as i64),
                             &entry.time,
                             &(entry.rank as i32),
+                            &entry.has_replay,
                         ],
                     )
                     .map_ok(drop)
@@ -148,6 +150,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                             &(entry.steam_id as i64),
                             &entry.score,
                             &(entry.rank as i32),
+                            &entry.has_replay,
                         ],
                     )
                     .map_ok(drop)

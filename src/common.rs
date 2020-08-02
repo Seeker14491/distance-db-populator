@@ -29,6 +29,7 @@ pub struct TimeLeaderboardEntry {
     pub steam_id: u64,
     pub time: i32,
     pub rank: u32,
+    pub has_replay: bool,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -36,6 +37,7 @@ pub struct ScoreLeaderboardEntry {
     pub steam_id: u64,
     pub score: i32,
     pub rank: u32,
+    pub has_replay: bool,
 }
 
 #[derive(Debug, Clone)]

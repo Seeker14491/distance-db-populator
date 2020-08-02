@@ -86,6 +86,7 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
                         steam_id: entry.steam_id.into(),
                         time: entry.score,
                         rank,
+                        has_replay: entry.ugc.is_some(),
                     });
 
             data.levels[i].sprint_entries.extend(level_entries);
@@ -107,6 +108,7 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
                         steam_id: entry.steam_id.into(),
                         time: entry.score,
                         rank,
+                        has_replay: entry.ugc.is_some(),
                     });
 
             data.levels[i].challenge_entries.extend(level_entries);
@@ -128,6 +130,7 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
                         steam_id: entry.steam_id.into(),
                         score: entry.score,
                         rank,
+                        has_replay: entry.ugc.is_some(),
                     });
 
             data.levels[i].stunt_entries.extend(level_entries);
