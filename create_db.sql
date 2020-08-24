@@ -75,5 +75,7 @@ CREATE INDEX ON challenge_leaderboard_entries USING HASH (steam_id);
 CREATE INDEX ON stunt_leaderboard_entries (level_id, rank);
 CREATE INDEX ON stunt_leaderboard_entries USING HASH (steam_id);
 
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO reader;
 ALTER ROLE reader SET statement_timeout TO '5000';
