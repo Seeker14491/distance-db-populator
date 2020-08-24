@@ -10,7 +10,7 @@ CREATE TABLE levels
 
 CREATE TABLE users
 (
-    steam_id bigint            PRIMARY KEY CHECK (steam_id <> 0),
+    steam_id bigint PRIMARY KEY CHECK (steam_id <> 0),
     name     character varying NOT NULL
 );
 
@@ -33,30 +33,30 @@ CREATE TABLE workshop_level_details
 
 CREATE TABLE sprint_leaderboard_entries
 (
-    level_id integer REFERENCES levels,
-    steam_id bigint REFERENCES users,
-    time     integer NOT NULL,
-    rank     integer NOT NULL CHECK (rank > 0),
+    level_id   integer REFERENCES levels,
+    steam_id   bigint REFERENCES users,
+    time       integer NOT NULL,
+    rank       integer NOT NULL CHECK (rank > 0),
     has_replay boolean NOT NULL,
     PRIMARY KEY (level_id, steam_id)
 );
 
 CREATE TABLE challenge_leaderboard_entries
 (
-    level_id integer REFERENCES levels,
-    steam_id bigint REFERENCES users,
-    time     integer NOT NULL,
-    rank     integer NOT NULL CHECK ( rank > 0 ),
+    level_id   integer REFERENCES levels,
+    steam_id   bigint REFERENCES users,
+    time       integer NOT NULL,
+    rank       integer NOT NULL CHECK ( rank > 0 ),
     has_replay boolean NOT NULL,
     PRIMARY KEY (level_id, steam_id)
 );
 
 CREATE TABLE stunt_leaderboard_entries
 (
-    level_id integer REFERENCES levels,
-    steam_id bigint REFERENCES users,
-    score    integer NOT NULL,
-    rank     integer NOT NULL CHECK (rank > 0),
+    level_id   integer REFERENCES levels,
+    steam_id   bigint REFERENCES users,
+    score      integer NOT NULL,
+    rank       integer NOT NULL CHECK (rank > 0),
     has_replay boolean NOT NULL,
     PRIMARY KEY (level_id, steam_id)
 );
