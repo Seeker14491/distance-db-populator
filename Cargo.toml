@@ -13,6 +13,6 @@ dotenv = "0.15"
 futures = "0.3"
 indicatif = "0.15"
 num-traits = "0.2"
-steamworks = { git = "https://github.com/Seeker14491/steamworks-rs.git", tag = "v0.0.20" }
+steamworks = { git = "https://github.com/Seeker14491/steamworks-rs.git", tag = "v0.0.23" }
 tokio = { version = "0.2", features = ["macros"] }
 tokio-postgres = { version = "0.5", features = ["with-chrono-0_4"] }
