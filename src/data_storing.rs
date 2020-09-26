@@ -2,7 +2,7 @@ use crate::common::DistanceData;
 use anyhow::Error;
 use futures::{
     prelude::*,
-    stream::{FuturesOrdered, FuturesUnordered},
+    stream::{self, FuturesOrdered, FuturesUnordered},
 };
 use steamworks::ugc::PublishedFileVisibility;
 
@@ -19,16 +19,14 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
     let stmt = &transaction
         .prepare("INSERT INTO users VALUES ($1, $2) ON CONFLICT DO NOTHING")
         .await?;
-    data.users
-        .iter()
-        .map(|user| async move {
+    stream::iter(&data.users)
+        .map(Ok)
+        .try_for_each_concurrent(None, |user| async move {
             transaction
                 .execute(stmt, &[&(user.steam_id as i64), &user.name])
                 .map_ok(drop)
                 .await
         })
-        .collect::<FuturesUnordered<_>>()
-        .try_for_each(|_| future::ok(()))
         .await?;
 
     println!("Inserting levels into the database");
@@ -180,7 +178,8 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
             // Timestamp already existed
             Err(e) if e.code() == Some(&tokio_postgres::error::SqlState::UNIQUE_VIOLATION) => {
                 nested_transaction.rollback().await?;
-                transaction.batch_execute("UPDATE metadata SET last_updated = now()")
+                transaction
+                    .batch_execute("UPDATE metadata SET last_updated = now()")
                     .await?;
             }
             // Some other error

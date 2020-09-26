@@ -180,7 +180,7 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
 
         println!("Resolving player + author names");
         let pb = &ProgressBar::new(users.len() as u64);
-        users
+        let users: Vec<_> = users
             .into_iter()
             .map(|steam_id| {
                 let steam = steam.clone();
@@ -195,13 +195,10 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
                 }
             })
             .collect::<FuturesUnordered<_>>()
-            .for_each(|user| {
-                data.users.push(user);
-
-                future::ready(())
-            })
+            .collect()
             .await;
 
+        data.users = users;
         pb.finish();
     }
 
