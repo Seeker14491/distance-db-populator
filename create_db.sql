@@ -68,6 +68,17 @@ CREATE TABLE metadata
     CHECK (onerow_id)
 );
 
+CREATE VIEW official_levels AS
+SELECT *
+FROM levels
+WHERE id NOT IN (SELECT level_id FROM workshop_level_details);
+
+
+CREATE VIEW workshop_levels AS
+SELECT *
+FROM levels
+WHERE id IN (SELECT level_id FROM workshop_level_details);
+
 CREATE INDEX ON sprint_leaderboard_entries (level_id, rank);
 CREATE INDEX ON sprint_leaderboard_entries USING HASH (steam_id);
 CREATE INDEX ON challenge_leaderboard_entries (level_id, rank);
