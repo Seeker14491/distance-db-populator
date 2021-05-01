@@ -18,6 +18,7 @@ mod data_storing;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
     color_backtrace::install();
+    tracing_subscriber::fmt::init();
 
     let mut db = establish_connection().await?;
 

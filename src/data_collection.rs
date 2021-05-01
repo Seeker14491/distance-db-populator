@@ -4,11 +4,14 @@ use distance_util::LeaderboardGameMode;
 use futures::stream::FuturesUnordered;
 use futures::{future, StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
+use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use steamworks::ugc::MatchingUgcType;
-use steamworks::user_stats::LeaderboardEntry;
+use steamworks::user_stats::{FindLeaderboardError, LeaderboardEntry};
+use tracing::debug;
 
 const MAX_LEADERBOARD_RANK_TO_DOWNLOAD: u32 = u32::MAX;
+const EMPTY_LEADERBOARD_RETRY_COUNT: usize = 5;
 
 pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
     let mut data = DistanceData::new();
@@ -250,36 +253,122 @@ async fn get_mode_entries(
         .map(|(i, leaderboard_name_string)| {
             let steam = steam.clone();
             async move {
-                let leaderboard = steam
-                    .find_leaderboard(leaderboard_name_string.clone())
-                    .await;
-                if let Ok(leaderboard) = leaderboard {
-                    let level_entries = leaderboard
+                let mut leaderboard = None;
+                for pos in (0..(1 + EMPTY_LEADERBOARD_RETRY_COUNT)).with_position() {
+                    let leaderboard_2 = steam
+                        .find_leaderboard(leaderboard_name_string.clone())
+                        .await;
+
+                    match leaderboard_2 {
+                        Ok(handle) => {
+                            match pos {
+                                itertools::Position::Middle(_) | itertools::Position::Last(_) => {
+                                    debug!(
+                                        leaderboard = %leaderboard_name_string,
+                                        current_retry = pos.into_inner(),
+                                        "retry succeeded in finding leaderboard"
+                                    );
+                                }
+                                itertools::Position::First(_) | itertools::Position::Only(_) => {}
+                            }
+
+                            leaderboard = Some(handle);
+                            break;
+                        }
+                        Err(e) => match e {
+                            FindLeaderboardError::NotFound { .. } => {
+                                let will_retry = match pos {
+                                    itertools::Position::First(_)
+                                    | itertools::Position::Middle(_) => true,
+                                    itertools::Position::Last(_) | itertools::Position::Only(_) => {
+                                        false
+                                    }
+                                };
+
+                                debug!(
+                                    error = %e,
+                                    current_retry = pos.into_inner(),
+                                    will_retry,
+                                    "error finding leaderboard"
+                                );
+                            }
+                            _ => {
+                                debug!(
+                                    error = %e,
+                                    "error finding leaderboard"
+                                );
+
+                                break;
+                            }
+                        },
+                    }
+                }
+
+                let leaderboard = match leaderboard {
+                    Some(x) => x,
+                    None => {
+                        return None;
+                    }
+                };
+
+                let mut level_entries = Vec::new();
+                for pos in (0..(1 + EMPTY_LEADERBOARD_RETRY_COUNT)).with_position() {
+                    level_entries = leaderboard
                         .download_global(1, MAX_LEADERBOARD_RANK_TO_DOWNLOAD, 0)
                         .await;
 
-                    let mut level_entries_with_rank = Vec::with_capacity(level_entries.len());
-                    let mut level_entries = level_entries.into_iter();
-
-                    if let Some(entry) = level_entries.next() {
-                        let mut prev_score = entry.score;
-                        let mut prev_rank = 1;
-                        level_entries_with_rank.push((entry, 1));
-                        for (entry, position) in level_entries.zip(2..) {
-                            let tied_previous = entry.score == prev_score;
-
-                            let rank = if tied_previous { prev_rank } else { position };
-
-                            prev_score = entry.score;
-                            prev_rank = rank;
-                            level_entries_with_rank.push((entry, rank));
+                    if !level_entries.is_empty() {
+                        match pos {
+                            itertools::Position::First(_) | itertools::Position::Only(_) => {}
+                            itertools::Position::Middle(i) | itertools::Position::Last(i) => {
+                                debug!(
+                                    leaderboard = %leaderboard_name_string,
+                                    current_retry = i,
+                                    "leaderboard download retry succeeded"
+                                );
+                            }
                         }
+
+                        break;
                     }
 
-                    Some((i, level_entries_with_rank))
-                } else {
-                    None
+                    match pos {
+                        itertools::Position::First(_) | itertools::Position::Only(_) => {
+                            debug!(
+                                leaderboard = %leaderboard_name_string,
+                                "empty leaderboard response"
+                            );
+                        }
+                        itertools::Position::Middle(_) => {}
+                        itertools::Position::Last(_) => {
+                            debug!(
+                                leaderboard = %leaderboard_name_string,
+                                limit = EMPTY_LEADERBOARD_RETRY_COUNT,
+                                "leaderboard download retry limit reached; assuming it's empty"
+                            );
+                        }
+                    }
                 }
+
+                let mut level_entries_with_rank = Vec::with_capacity(level_entries.len());
+                let mut level_entries = level_entries.into_iter();
+
+                if let Some(entry) = level_entries.next() {
+                    let mut prev_score = entry.score;
+                    let mut prev_rank = 1;
+                    level_entries_with_rank.push((entry, 1));
+                    for (entry, position) in level_entries.zip(2..) {
+                        let tied_previous = entry.score == prev_score;
+
+                        let rank = if tied_previous { prev_rank } else { position };
+
+                        prev_score = entry.score;
+                        prev_rank = rank;
+                        level_entries_with_rank.push((entry, rank));
+                    }
+                }
+
+                Some((i, level_entries_with_rank))
             }
         })
         .collect::<FuturesUnordered<_>>()
