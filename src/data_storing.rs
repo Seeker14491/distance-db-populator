@@ -1,9 +1,7 @@
 use crate::common::DistanceData;
 use anyhow::Error;
-use futures::{
-    prelude::*,
-    stream::{self, FuturesOrdered, FuturesUnordered},
-};
+use futures::prelude::*;
+use futures::stream::{self, FuturesOrdered, FuturesUnordered};
 use steamworks::ugc::PublishedFileVisibility;
 
 pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<(), Error> {

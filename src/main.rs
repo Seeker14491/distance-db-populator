@@ -6,16 +6,16 @@
     unused_qualifications
 )]
 
-mod common;
-mod data_collection;
-mod data_storing;
-
 use crate::common::DistanceData;
 use anyhow::{anyhow, Context, Error};
 use futures::prelude::*;
 use std::env;
 
-#[tokio::main]
+mod common;
+mod data_collection;
+mod data_storing;
+
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Error> {
     color_backtrace::install();
 

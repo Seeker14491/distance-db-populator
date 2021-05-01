@@ -1,12 +1,14 @@
 use crate::common::{DistanceData, Level, ScoreLeaderboardEntry, TimeLeaderboardEntry, User};
 use anyhow::Error;
 use distance_util::LeaderboardGameMode;
-use futures::{future, stream::FuturesUnordered, StreamExt, TryStreamExt};
+use futures::stream::FuturesUnordered;
+use futures::{future, StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use std::collections::{HashMap, HashSet};
-use steamworks::{ugc::MatchingUgcType, user_stats::LeaderboardEntry};
+use steamworks::ugc::MatchingUgcType;
+use steamworks::user_stats::LeaderboardEntry;
 
-const MAX_LEADERBOARD_RANK_TO_DOWNLOAD: u32 = u32::max_value();
+const MAX_LEADERBOARD_RANK_TO_DOWNLOAD: u32 = u32::MAX;
 
 pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
     let mut data = DistanceData::new();
