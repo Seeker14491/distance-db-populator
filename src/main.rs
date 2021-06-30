@@ -20,10 +20,14 @@ async fn main() -> Result<(), Error> {
     color_backtrace::install();
     tracing_subscriber::fmt::init();
 
+    println!("Connecting to database...");
     let mut db = establish_connection().await?;
+    println!("Connected to database.");
 
     let distance_data = {
+        println!("Initializing Steamworks API...");
         let steam = steamworks::Client::init()?;
+        println!("Steamworks API initialized.");
 
         data_collection::run(steam)
             .await
