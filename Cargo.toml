@@ -2,7 +2,7 @@
 name = "distance-db-populator"
 version = "0.1.0"
 authors = ["Brian Bowman <seeker14491@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 anyhow = "1"
@@ -14,8 +14,8 @@ futures = "0.3"
 indicatif = "0.16"
 itertools = "0.10"
 num-traits = "0.2"
-steamworks = { git = "https://github.com/Seeker14491/steamworks-rs.git", tag = "v0.0.23" }
+steamworks = { git = "https://github.com/Seeker14491/steamworks-rs.git", tag = "v0.0.24" }
 tokio = { version = "1", features = ["macros", "rt"] }
 tokio-postgres = { version = "0.7", features = ["with-chrono-0_4"] }
 tracing = "0.1"
-tracing-subscriber = "0.2"
+tracing-subscriber = "0.3"
