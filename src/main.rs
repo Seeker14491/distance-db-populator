@@ -26,7 +26,7 @@ async fn main() -> Result<(), Error> {
 
     let distance_data = {
         println!("Initializing Steamworks API...");
-        let steam = steamworks::Client::init()?;
+        let steam = steamworks::Client::init(Some(233610))?;
         println!("Steamworks API initialized.");
 
         data_collection::run(steam)
