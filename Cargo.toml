@@ -8,6 +8,7 @@ edition = "2021"
 anyhow = "1"
 chrono = "0.4"
 color-backtrace = "0.5"
+distance-steam-data-client = { git = "https://github.com/Seeker14491/DistanceSteamDataServer.git" }
 distance-util = { git = "https://github.com/Seeker14491/distance-util.git", tag = "v0.1.0"}
 dotenv = "0.15"
 futures = "0.3"

@@ -8,8 +8,10 @@
 
 use crate::common::DistanceData;
 use anyhow::{anyhow, Context, Error};
+use distance_steam_data_client::Client as GrpcClient;
 use futures::prelude::*;
 use std::env;
+use std::time::Instant;
 
 mod common;
 mod data_collection;
@@ -20,6 +22,9 @@ async fn main() -> Result<(), Error> {
     color_backtrace::install();
     tracing_subscriber::fmt::init();
 
+    let grpc_server_address = env::var("GRPC_SERVER_ADDRESS")
+        .context("The environment variable `GRPC_SERVER_ADDRESS` must be set.")?;
+
     println!("Connecting to database...");
     let mut db = establish_connection().await?;
     println!("Connected to database.");
@@ -29,9 +34,22 @@ async fn main() -> Result<(), Error> {
         let steam = steamworks::Client::init(Some(233610))?;
         println!("Steamworks API initialized.");
 
-        data_collection::run(steam)
+        println!("Connecting to Distance gRPC server...");
+        let grpc = GrpcClient::connect(&grpc_server_address).await?;
+        println!("Connected.");
+
+        println!("Starting data collection.");
+        let start_instant = Instant::now();
+        let data = data_collection::run(steam, grpc)
             .await
-            .context("error acquiring data")?
+            .context("error acquiring data")?;
+        let data_collection_time = Instant::now().duration_since(start_instant);
+        println!(
+            "Finished collecting data in {} seconds.",
+            data_collection_time.as_secs()
+        );
+
+        data
     };
 
     print_stats(&distance_data);

@@ -1,5 +1,6 @@
 use crate::common::{DistanceData, Level, ScoreLeaderboardEntry, TimeLeaderboardEntry, User};
 use anyhow::Error;
+use distance_steam_data_client::{Client as GrpcClient, LeaderboardEntry};
 use distance_util::LeaderboardGameMode;
 use futures::stream::FuturesUnordered;
 use futures::{future, StreamExt, TryStreamExt};
@@ -7,13 +8,11 @@ use indicatif::ProgressBar;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 use steamworks::ugc::MatchingUgcType;
-use steamworks::user_stats::{FindLeaderboardError, LeaderboardEntry};
-use tracing::debug;
 
-const MAX_LEADERBOARD_RANK_TO_DOWNLOAD: u32 = u32::MAX;
-const EMPTY_LEADERBOARD_RETRY_COUNT: usize = 5;
-
-pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
+pub async fn run(
+    steam: steamworks::Client,
+    grpc_client: GrpcClient,
+) -> Result<DistanceData, Error> {
     let mut data = DistanceData::new();
 
     let mut official_levels: HashMap<&'static str, Level> = HashMap::new();
@@ -78,9 +77,12 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
 
     println!("Downloading Sprint leaderboard entries");
     {
-        let entries = get_mode_entries(&steam, &data.levels, LeaderboardGameMode::Sprint, |l| {
-            l.is_sprint
-        })
+        let entries = get_mode_entries(
+            &grpc_client,
+            &data.levels,
+            LeaderboardGameMode::Sprint,
+            |l| l.is_sprint,
+        )
         .await;
 
         for (i, level_entries_raw) in entries {
@@ -88,10 +90,10 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
                 level_entries_raw
                     .into_iter()
                     .map(|(entry, rank)| TimeLeaderboardEntry {
-                        steam_id: entry.steam_id.into(),
+                        steam_id: entry.steam_id,
                         time: entry.score,
                         rank,
-                        has_replay: entry.ugc.is_some(),
+                        has_replay: entry.has_replay,
                     });
 
             data.levels[i].sprint_entries.extend(level_entries);
@@ -100,9 +102,12 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
 
     println!("Downloading Challenge leaderboard entries");
     {
-        let entries = get_mode_entries(&steam, &data.levels, LeaderboardGameMode::Challenge, |l| {
-            l.is_challenge
-        })
+        let entries = get_mode_entries(
+            &grpc_client,
+            &data.levels,
+            LeaderboardGameMode::Challenge,
+            |l| l.is_challenge,
+        )
         .await;
 
         for (i, level_entries_raw) in entries {
@@ -110,10 +115,10 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
                 level_entries_raw
                     .into_iter()
                     .map(|(entry, rank)| TimeLeaderboardEntry {
-                        steam_id: entry.steam_id.into(),
+                        steam_id: entry.steam_id,
                         time: entry.score,
                         rank,
-                        has_replay: entry.ugc.is_some(),
+                        has_replay: entry.has_replay,
                     });
 
             data.levels[i].challenge_entries.extend(level_entries);
@@ -122,9 +127,12 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
 
     println!("Downloading Stunt leaderboard entries");
     {
-        let entries = get_mode_entries(&steam, &data.levels, LeaderboardGameMode::Stunt, |l| {
-            l.is_stunt
-        })
+        let entries = get_mode_entries(
+            &grpc_client,
+            &data.levels,
+            LeaderboardGameMode::Stunt,
+            |l| l.is_stunt,
+        )
         .await;
 
         for (i, level_entries_raw) in entries {
@@ -132,10 +140,10 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
                 level_entries_raw
                     .into_iter()
                     .map(|(entry, rank)| ScoreLeaderboardEntry {
-                        steam_id: entry.steam_id.into(),
+                        steam_id: entry.steam_id,
                         score: entry.score,
                         rank,
-                        has_replay: entry.ugc.is_some(),
+                        has_replay: entry.has_replay,
                     });
 
             data.levels[i].stunt_entries.extend(level_entries);
@@ -144,7 +152,7 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
 
     // Resolve Player and Author names
     {
-        let mut users = HashSet::new();
+        let mut user_ids = HashSet::new();
 
         // Level authors
         data.levels
@@ -156,7 +164,7 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
                     .map(|details| details.steam_id_owner)
             })
             .for_each(|steam_id| {
-                users.insert(steam_id);
+                user_ids.insert(steam_id.as_u64());
             });
 
         // Sprint players
@@ -164,7 +172,7 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
             .iter()
             .flat_map(|level| level.sprint_entries.iter().map(|entry| entry.steam_id))
             .for_each(|steam_id| {
-                users.insert(steam_id.into());
+                user_ids.insert(steam_id);
             });
 
         // Challenge players
@@ -172,7 +180,7 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
             .iter()
             .flat_map(|level| level.challenge_entries.iter().map(|entry| entry.steam_id))
             .for_each(|steam_id| {
-                users.insert(steam_id.into());
+                user_ids.insert(steam_id);
             });
 
         // Stunt players
@@ -180,31 +188,25 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
             .iter()
             .flat_map(|level| level.stunt_entries.iter().map(|entry| entry.steam_id))
             .for_each(|steam_id| {
-                users.insert(steam_id.into());
+                user_ids.insert(steam_id);
             });
 
-        println!("Resolving player + author names");
-        let pb = &ProgressBar::new(users.len() as u64);
-        let users: Vec<_> = users
-            .into_iter()
-            .map(|steam_id| {
-                let steam = steam.clone();
-                async move {
-                    let name = steam_id.persona_name(&steam).await;
-                    pb.inc(1);
+        let user_ids = user_ids.into_iter().collect_vec();
 
-                    User {
-                        steam_id: steam_id.into(),
-                        name,
-                    }
-                }
+        println!("Resolving player + author names...");
+        let user_names = grpc_client.persona_names(user_ids.clone()).await?;
+        println!("Finished resolving player + author names.");
+
+        let users = user_ids
+            .iter()
+            .zip(user_names)
+            .map(|(&steam_id, name)| User {
+                steam_id,
+                name: name.unwrap_or_default(),
             })
-            .collect::<FuturesUnordered<_>>()
-            .collect()
-            .await;
+            .collect();
 
         data.users = users;
-        pb.finish();
     }
 
     Ok(data)
@@ -216,7 +218,7 @@ pub async fn run(steam: steamworks::Client) -> Result<DistanceData, Error> {
 /// index into the passed-in `levels` slice, and 2. a vec containing all
 /// entries for that particular level, together with the rank for each entry.
 async fn get_mode_entries(
-    steam: &steamworks::Client,
+    client: &GrpcClient,
     levels: &[Level],
     game_mode: LeaderboardGameMode,
     game_mode_predicate: impl Fn(&Level) -> bool,
@@ -250,126 +252,31 @@ async fn get_mode_entries(
     let pb = ProgressBar::new(mode_level_leaderboard_names.len() as u64);
     let entries: Vec<(usize, Vec<(LeaderboardEntry, u32)>)> = mode_level_leaderboard_names
         .into_iter()
-        .map(|(i, leaderboard_name_string)| {
-            let steam = steam.clone();
-            async move {
-                let mut leaderboard = None;
-                for pos in (0..(1 + EMPTY_LEADERBOARD_RETRY_COUNT)).with_position() {
-                    let leaderboard_2 = steam
-                        .find_leaderboard(leaderboard_name_string.clone())
-                        .await;
+        .map(|(i, leaderboard_name_string)| async move {
+            let level_entries = client
+                .leaderboard_entries_all(&leaderboard_name_string)
+                .await
+                .ok()?;
 
-                    match leaderboard_2 {
-                        Ok(handle) => {
-                            match pos {
-                                itertools::Position::Middle(_) | itertools::Position::Last(_) => {
-                                    debug!(
-                                        leaderboard = %leaderboard_name_string,
-                                        current_retry = pos.into_inner(),
-                                        "retry succeeded in finding leaderboard"
-                                    );
-                                }
-                                itertools::Position::First(_) | itertools::Position::Only(_) => {}
-                            }
+            let mut level_entries_with_rank = Vec::with_capacity(level_entries.len());
+            let mut level_entries = level_entries.into_iter();
 
-                            leaderboard = Some(handle);
-                            break;
-                        }
-                        Err(e) => match e {
-                            FindLeaderboardError::NotFound { .. } => {
-                                let will_retry = match pos {
-                                    itertools::Position::First(_)
-                                    | itertools::Position::Middle(_) => true,
-                                    itertools::Position::Last(_) | itertools::Position::Only(_) => {
-                                        false
-                                    }
-                                };
+            if let Some(entry) = level_entries.next() {
+                let mut prev_score = entry.score;
+                let mut prev_rank = 1;
+                level_entries_with_rank.push((entry, 1));
+                for (entry, position) in level_entries.zip(2..) {
+                    let tied_previous = entry.score == prev_score;
 
-                                debug!(
-                                    error = %e,
-                                    current_retry = pos.into_inner(),
-                                    will_retry,
-                                    "error finding leaderboard"
-                                );
-                            }
-                            _ => {
-                                debug!(
-                                    error = %e,
-                                    "error finding leaderboard"
-                                );
+                    let rank = if tied_previous { prev_rank } else { position };
 
-                                break;
-                            }
-                        },
-                    }
+                    prev_score = entry.score;
+                    prev_rank = rank;
+                    level_entries_with_rank.push((entry, rank));
                 }
-
-                let leaderboard = match leaderboard {
-                    Some(x) => x,
-                    None => {
-                        return None;
-                    }
-                };
-
-                let mut level_entries = Vec::new();
-                for pos in (0..(1 + EMPTY_LEADERBOARD_RETRY_COUNT)).with_position() {
-                    level_entries = leaderboard
-                        .download_global(1, MAX_LEADERBOARD_RANK_TO_DOWNLOAD, 0)
-                        .await;
-
-                    if !level_entries.is_empty() {
-                        match pos {
-                            itertools::Position::First(_) | itertools::Position::Only(_) => {}
-                            itertools::Position::Middle(i) | itertools::Position::Last(i) => {
-                                debug!(
-                                    leaderboard = %leaderboard_name_string,
-                                    current_retry = i,
-                                    "leaderboard download retry succeeded"
-                                );
-                            }
-                        }
-
-                        break;
-                    }
-
-                    match pos {
-                        itertools::Position::First(_) | itertools::Position::Only(_) => {
-                            debug!(
-                                leaderboard = %leaderboard_name_string,
-                                "empty leaderboard response"
-                            );
-                        }
-                        itertools::Position::Middle(_) => {}
-                        itertools::Position::Last(_) => {
-                            debug!(
-                                leaderboard = %leaderboard_name_string,
-                                limit = EMPTY_LEADERBOARD_RETRY_COUNT,
-                                "leaderboard download retry limit reached; assuming it's empty"
-                            );
-                        }
-                    }
-                }
-
-                let mut level_entries_with_rank = Vec::with_capacity(level_entries.len());
-                let mut level_entries = level_entries.into_iter();
-
-                if let Some(entry) = level_entries.next() {
-                    let mut prev_score = entry.score;
-                    let mut prev_rank = 1;
-                    level_entries_with_rank.push((entry, 1));
-                    for (entry, position) in level_entries.zip(2..) {
-                        let tied_previous = entry.score == prev_score;
-
-                        let rank = if tied_previous { prev_rank } else { position };
-
-                        prev_score = entry.score;
-                        prev_rank = rank;
-                        level_entries_with_rank.push((entry, rank));
-                    }
-                }
-
-                Some((i, level_entries_with_rank))
             }
+
+            Some((i, level_entries_with_rank))
         })
         .collect::<FuturesUnordered<_>>()
         .inspect(|_| pb.inc(1))
