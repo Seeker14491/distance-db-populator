@@ -1,3 +1,0 @@
-[tasks.dump-db]
-command = "pg_dump"
-args = ["-s", "-d", "distance", "-f", "create_db.sql"]
