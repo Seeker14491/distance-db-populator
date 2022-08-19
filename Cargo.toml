@@ -1,2 +1,2 @@
 [workspace]
-members = ["distance-db-populator"]
+members = ["distance-db-populator", "distance-db-populator-manager"]
