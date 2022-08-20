@@ -3,6 +3,8 @@ use anyhow::Error;
 use futures::prelude::*;
 use futures::stream::{self, FuturesOrdered, FuturesUnordered};
 use steamworks::ugc::PublishedFileVisibility;
+use tokio_postgres::binary_copy::BinaryCopyInWriter;
+use tokio_postgres::types::Type as PgType;
 
 pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<(), Error> {
     let mut transaction_owned = db.transaction().await?;
@@ -58,15 +60,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
     let wld_stmt = &transaction
         .prepare("INSERT INTO workshop_level_details VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)")
         .await?;
-    let sprint_stmt = &transaction
-        .prepare("INSERT INTO sprint_leaderboard_entries VALUES ($1, $2, $3, $4, $5)")
-        .await?;
-    let challenge_stmt = &transaction
-        .prepare("INSERT INTO challenge_leaderboard_entries VALUES ($1, $2, $3, $4, $5)")
-        .await?;
-    let stunt_stmt = &transaction
-        .prepare("INSERT INTO stunt_leaderboard_entries VALUES ($1, $2, $3, $4, $5)")
-        .await?;
+
     let futs = FuturesUnordered::new();
     for (level_id, level) in level_ids.iter().zip(data.levels.iter()) {
         if let Some(details) = &level.workshop_level_details {
@@ -101,60 +95,111 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
             futs.push(fut.boxed());
         }
 
-        for entry in &level.sprint_entries {
+        // Sprint entries
+        {
             let fut = async move {
-                transaction
-                    .execute(
-                        sprint_stmt,
-                        &[
+                let sink = transaction
+                    .copy_in("COPY sprint_leaderboard_entries FROM STDIN WITH (FORMAT binary)")
+                    .await?;
+                let mut writer = Box::pin(BinaryCopyInWriter::new(
+                    sink,
+                    &[
+                        PgType::INT4,
+                        PgType::INT8,
+                        PgType::INT4,
+                        PgType::INT4,
+                        PgType::BOOL,
+                    ],
+                ));
+                for entry in &level.sprint_entries {
+                    writer
+                        .as_mut()
+                        .write(&[
                             &level_id,
                             &(entry.steam_id as i64),
                             &entry.time,
                             &(entry.rank as i32),
                             &entry.has_replay,
-                        ],
-                    )
-                    .map_ok(drop)
-                    .await
+                        ])
+                        .await?;
+                }
+                writer.as_mut().finish().await?;
+
+                Ok(())
             };
+
             futs.push(fut.boxed());
         }
 
-        for entry in &level.challenge_entries {
+        // Challenge entries
+        {
             let fut = async move {
-                transaction
-                    .execute(
-                        challenge_stmt,
-                        &[
+                let sink = transaction
+                    .copy_in("COPY challenge_leaderboard_entries FROM STDIN WITH (FORMAT binary)")
+                    .await?;
+                let mut writer = Box::pin(BinaryCopyInWriter::new(
+                    sink,
+                    &[
+                        PgType::INT4,
+                        PgType::INT8,
+                        PgType::INT4,
+                        PgType::INT4,
+                        PgType::BOOL,
+                    ],
+                ));
+                for entry in &level.challenge_entries {
+                    writer
+                        .as_mut()
+                        .write(&[
                             &level_id,
                             &(entry.steam_id as i64),
                             &entry.time,
                             &(entry.rank as i32),
                             &entry.has_replay,
-                        ],
-                    )
-                    .map_ok(drop)
-                    .await
+                        ])
+                        .await?;
+                }
+                writer.as_mut().finish().await?;
+
+                Ok(())
             };
+
             futs.push(fut.boxed());
         }
 
-        for entry in &level.stunt_entries {
+        // Stunt entries
+        {
             let fut = async move {
-                transaction
-                    .execute(
-                        stunt_stmt,
-                        &[
+                let sink = transaction
+                    .copy_in("COPY stunt_leaderboard_entries FROM STDIN WITH (FORMAT binary)")
+                    .await?;
+                let mut writer = Box::pin(BinaryCopyInWriter::new(
+                    sink,
+                    &[
+                        PgType::INT4,
+                        PgType::INT8,
+                        PgType::INT4,
+                        PgType::INT4,
+                        PgType::BOOL,
+                    ],
+                ));
+                for entry in &level.stunt_entries {
+                    writer
+                        .as_mut()
+                        .write(&[
                             &level_id,
                             &(entry.steam_id as i64),
                             &entry.score,
                             &(entry.rank as i32),
                             &entry.has_replay,
-                        ],
-                    )
-                    .map_ok(drop)
-                    .await
+                        ])
+                        .await?;
+                }
+                writer.as_mut().finish().await?;
+
+                Ok(())
             };
+
             futs.push(fut.boxed());
         }
     }
