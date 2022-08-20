@@ -21,6 +21,7 @@ mod data_storing;
 async fn main() -> Result<(), Error> {
     color_backtrace::install();
     tracing_subscriber::fmt::init();
+    dotenv::dotenv().ok();
 
     let grpc_server_address = env::var("GRPC_SERVER_ADDRESS")
         .context("The environment variable `GRPC_SERVER_ADDRESS` must be set.")?;
@@ -64,8 +65,6 @@ async fn main() -> Result<(), Error> {
 }
 
 async fn establish_connection() -> Result<tokio_postgres::Client, Error> {
-    dotenv::dotenv().ok();
-
     let database_url =
         env::var("DATABASE_URL").context("Environment variable DATABASE_URL is not set")?;
 
