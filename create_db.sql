@@ -79,6 +79,7 @@ SELECT *
 FROM levels
 WHERE id IN (SELECT level_id FROM workshop_level_details);
 
+CREATE INDEX ON users (name);
 CREATE INDEX ON sprint_leaderboard_entries (level_id, rank);
 CREATE INDEX ON sprint_leaderboard_entries USING HASH (steam_id);
 CREATE INDEX ON challenge_leaderboard_entries (level_id, rank);
