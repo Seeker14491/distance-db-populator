@@ -15,7 +15,6 @@ use std::{env, process};
 use tokio::process::{Child, Command};
 use tokio::time;
 
-const UPDATE_PERIOD: Duration = Duration::from_secs(30 * 60);
 const MAX_UPDATE_DURATION: Duration = Duration::from_secs(5 * 60);
 const STEAM_RESTART_PERIOD: Duration = Duration::from_secs(3 * 3600);
 
@@ -64,6 +63,10 @@ fn print_error<E: Into<Error>>(e: E) {
 }
 
 async fn run(healthchecks_url: Option<&str>) -> Result<(), Error> {
+    let min_minutes_between_updates = env::var("MIN_MINUTES_BETWEEN_UPDATES")
+        .map_err(Error::from)
+        .and_then(|x| Ok(x.parse()?))
+        .unwrap_or(60);
     let mut consecutive_update_failures = 0;
 
     loop {
@@ -82,7 +85,7 @@ async fn run(healthchecks_url: Option<&str>) -> Result<(), Error> {
                     }
 
                     time::sleep(
-                        UPDATE_PERIOD
+                        Duration::from_secs(60 * min_minutes_between_updates)
                             .checked_sub(update_start_time.elapsed())
                             .unwrap_or_default(),
                     )
