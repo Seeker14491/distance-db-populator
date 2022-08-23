@@ -108,7 +108,14 @@ async fn run(healthchecks_url: Option<&str>) -> Result<(), Error> {
         }
 
         shutdown_steam().await?;
-        steam.wait().await?;
+        match time::timeout(Duration::from_secs(30), steam.wait()).await {
+            Ok(x) => {
+                x?;
+            }
+            Err(_) => {
+                steam.kill().await?;
+            }
+        }
     }
 }
 
