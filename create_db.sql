@@ -98,4 +98,4 @@ LANGUAGE SQL STABLE;
 REVOKE CREATE ON SCHEMA public FROM PUBLIC;
 
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO reader;
-ALTER ROLE reader SET statement_timeout TO '5000';
+ALTER ROLE reader SET statement_timeout TO '10000';
