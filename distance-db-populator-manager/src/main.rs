@@ -15,7 +15,7 @@ use std::{env, process};
 use tokio::process::{Child, Command};
 use tokio::time;
 
-const MAX_UPDATE_DURATION: Duration = Duration::from_secs(5 * 60);
+const MAX_UPDATE_DURATION: Duration = Duration::from_secs(10 * 60);
 const STEAM_RESTART_PERIOD: Duration = Duration::from_secs(3 * 3600);
 
 #[tokio::main(flavor = "current_thread")]
