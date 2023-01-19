@@ -90,12 +90,11 @@ fn print_stats(data: &DistanceData) {
         .count();
     let workshop_levels = total_levels - official_levels;
     println!(
-        "Total levels: {} (Official: {}, Workshop: {})",
-        total_levels, official_levels, workshop_levels
+        "Total levels: {total_levels} (Official: {official_levels}, Workshop: {workshop_levels})"
     );
 
     let total_users = data.users.len();
-    println!("Total users: {}", total_users);
+    println!("Total users: {total_users}");
 
     let sprint_entries: usize = data
         .levels
@@ -114,7 +113,6 @@ fn print_stats(data: &DistanceData) {
         .sum();
     let total_entries = sprint_entries + challenge_entries + stunt_entries;
     println!(
-        "Total leaderboard entries: {} (Sprint: {}, Challenge: {}, Stunt: {})",
-        total_entries, sprint_entries, challenge_entries, stunt_entries
+        "Total leaderboard entries: {total_entries} (Sprint: {sprint_entries}, Challenge: {challenge_entries}, Stunt: {stunt_entries})"
     );
 }

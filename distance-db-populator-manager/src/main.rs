@@ -43,7 +43,7 @@ async fn main() {
 
     if let Err(e) = result {
         if let Some(url) = healthchecks_url {
-            healthchecks_send_fail_signal(&url, &format!("error: {}", e))
+            healthchecks_send_fail_signal(&url, &format!("error: {e}"))
                 .await
                 .expect("Couldn't send healthchecks fail signal");
         }
@@ -185,8 +185,8 @@ async fn healthchecks_send_fail_signal(
     healthchecks_url: &str,
     error: impl Display,
 ) -> Result<(), Error> {
-    surf::post(format!("{}/fail", healthchecks_url))
-        .body(format!("[distance-db-populator-manager] error: {}", error))
+    surf::post(format!("{healthchecks_url}/fail"))
+        .body(format!("[distance-db-populator-manager] error: {error}"))
         .send()
         .await
         .map_err(|e| format_err!("Error sending fail signal: {}", e))?;
