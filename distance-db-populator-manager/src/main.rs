@@ -79,7 +79,7 @@ async fn run(healthchecks_url: Option<&str>) -> Result<(), Error> {
             let f = run_distance_log();
             pin_mut!(f);
             match time::timeout(MAX_UPDATE_DURATION, f).await {
-                Ok(_) => {
+                Ok(Ok(())) => {
                     if let Some(url) = healthchecks_url {
                         healthchecks_send_ping(url).await.ok();
                     }
@@ -92,6 +92,9 @@ async fn run(healthchecks_url: Option<&str>) -> Result<(), Error> {
                     .await;
 
                     consecutive_update_failures = 0;
+                }
+                Ok(Err(e)) => {
+                    print_error(e);
                 }
                 Err(_) => {
                     print_error(format_err!("distance-db-populator ran for too long"));
@@ -163,13 +166,19 @@ async fn shutdown_steam() -> Result<ExitStatus, Error> {
         .context("Error shutting down Steam")
 }
 
-async fn run_distance_log() -> Result<ExitStatus, Error> {
+async fn run_distance_log() -> Result<(), Error> {
     info!("Starting distance-db-populator");
     let mut child = Command::new("./distance-db-populator")
         .spawn()
         .context("Couldn't spawn the distance-db-populator process")?;
 
-    Ok(child.wait().await?)
+    let exit_code = child.wait().await?.code();
+    match exit_code {
+        Some(code) if code != 0 => {
+            Err(format_err!("distance-db-populator exited with code {code}"))
+        }
+        _ => Ok(()),
+    }
 }
 
 async fn healthchecks_send_ping(healthchecks_url: &str) -> Result<(), Error> {
