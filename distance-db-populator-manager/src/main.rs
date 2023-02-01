@@ -11,7 +11,7 @@ use log::{error, info, warn};
 use std::fmt::Display;
 use std::process::{ExitStatus, Stdio};
 use std::time::{Duration, Instant};
-use std::{env, process};
+use std::{env, process, thread};
 use tokio::process::{Child, Command};
 use tokio::time;
 
@@ -95,6 +95,9 @@ async fn run(healthchecks_url: Option<&str>) -> Result<(), Error> {
                 }
                 Ok(Err(e)) => {
                     print_error(e);
+
+                    info!("Sleeping for 30 seconds...");
+                    thread::sleep(Duration::from_secs(30));
                 }
                 Err(_) => {
                     print_error(format_err!("distance-db-populator ran for too long"));
