@@ -76,7 +76,7 @@ async fn run(healthchecks_url: Option<&str>) -> Result<(), Error> {
         let steam_start_time = Instant::now();
         while steam_start_time.elapsed() < STEAM_RESTART_PERIOD {
             let update_start_time = Instant::now();
-            let f = run_distance_log();
+            let f = run_distance_db_populator();
             pin_mut!(f);
             match time::timeout(MAX_UPDATE_DURATION, f).await {
                 Ok(Ok(())) => {
@@ -169,7 +169,7 @@ async fn shutdown_steam() -> Result<ExitStatus, Error> {
         .context("Error shutting down Steam")
 }
 
-async fn run_distance_log() -> Result<(), Error> {
+async fn run_distance_db_populator() -> Result<(), Error> {
     info!("Starting distance-db-populator");
     let mut child = Command::new("./distance-db-populator")
         .spawn()
