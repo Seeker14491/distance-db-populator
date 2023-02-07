@@ -1,8 +1,9 @@
 use crate::common::DistanceData;
 use anyhow::Error;
+use chrono::{TimeZone, Utc};
 use futures::prelude::*;
 use futures::stream::{self, FuturesOrdered, FuturesUnordered};
-use steamworks::ugc::PublishedFileVisibility;
+use itertools::Itertools;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::Type as PgType;
 
@@ -65,9 +66,10 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
     for (level_id, level) in level_ids.iter().zip(data.levels.iter()) {
         if let Some(details) = &level.workshop_level_details {
             let visibility = match details.visibility {
-                PublishedFileVisibility::Public => "public",
-                PublishedFileVisibility::FriendsOnly => "friends_only",
-                PublishedFileVisibility::Private => "private",
+                0 => "public",
+                1 => "friends_only",
+                2 => "private",
+                _ => panic!("unexpected visibility discriminant: {}", details.visibility),
             };
             let fut = async move {
                 transaction
@@ -75,18 +77,18 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                         wld_stmt,
                         &[
                             &level_id,
-                            &(details.steam_id_owner.as_u64() as i64),
-                            &details.description,
-                            &details.time_created,
-                            &details.time_updated,
+                            &(details.creator as i64),
+                            &details.file_description,
+                            &Utc.timestamp_opt(details.time_created as i64, 0).unwrap(),
+                            &Utc.timestamp_opt(details.time_updated as i64, 0).unwrap(),
                             &visibility,
-                            &details.tags.as_str(),
+                            &details.tags.iter().map(|tag| &tag.tag).join(",").as_str(),
                             &details.preview_url,
-                            &details.file_name,
-                            &details.file_size,
-                            &(details.votes_up as i32),
-                            &(details.votes_down as i32),
-                            &details.score,
+                            &details.filename,
+                            &(details.file_size as i32),
+                            &(details.vote_data.votes_up as i32),
+                            &(details.vote_data.votes_down as i32),
+                            &details.vote_data.score,
                         ],
                     )
                     .map_ok(drop)

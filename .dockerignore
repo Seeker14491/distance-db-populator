@@ -1,1 +1,5 @@
-/target/
+*
+!distance-db-populator/
+!distance-db-populator-manager/
+!Cargo.lock
+!Cargo.toml

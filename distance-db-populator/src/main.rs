@@ -31,9 +31,10 @@ async fn main() -> Result<(), Error> {
     println!("Connected to database.");
 
     let distance_data = {
-        println!("Initializing Steamworks API...");
-        let steam = steamworks::Client::init(Some(233610))?;
-        println!("Steamworks API initialized.");
+        let steam_web_api_key = env::var("STEAM_WEB_API_KEY")
+            .expect("environment variable STEAM_WEB_API_KEY is not set");
+
+        let web_client = reqwest::Client::new();
 
         println!("Connecting to Distance gRPC server...");
         let grpc = GrpcClient::connect(&grpc_server_address).await?;
@@ -41,7 +42,7 @@ async fn main() -> Result<(), Error> {
 
         println!("Starting data collection.");
         let start_instant = Instant::now();
-        let data = data_collection::run(steam, grpc)
+        let data = data_collection::run(web_client, grpc, steam_web_api_key.clone())
             .await
             .context("error acquiring data")?;
         let data_collection_time = Instant::now().duration_since(start_instant);

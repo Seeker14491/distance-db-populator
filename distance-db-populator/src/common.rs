@@ -1,4 +1,4 @@
-use steamworks::ugc::UgcDetails;
+use steam_workshop::types::PublishedFileDetails;
 
 #[derive(Debug, Clone, Default)]
 pub struct DistanceData {
@@ -18,7 +18,7 @@ pub struct Level {
     pub is_sprint: bool,
     pub is_challenge: bool,
     pub is_stunt: bool,
-    pub workshop_level_details: Option<UgcDetails>,
+    pub workshop_level_details: Option<PublishedFileDetails>,
     pub sprint_entries: Vec<TimeLeaderboardEntry>,
     pub challenge_entries: Vec<TimeLeaderboardEntry>,
     pub stunt_entries: Vec<ScoreLeaderboardEntry>,

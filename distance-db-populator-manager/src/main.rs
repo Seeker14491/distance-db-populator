@@ -5,18 +5,17 @@
     unused_qualifications
 )]
 
-use anyhow::{format_err, Context, Error};
+use anyhow::{format_err, Context, Error, Result};
 use futures::pin_mut;
 use log::{error, info, warn};
 use std::fmt::Display;
-use std::process::{ExitStatus, Stdio};
+use std::process::ExitStatus;
 use std::time::{Duration, Instant};
-use std::{env, process, thread};
-use tokio::process::{Child, Command};
+use std::{env, process};
+use tokio::process::Command;
 use tokio::time;
 
-const MAX_UPDATE_DURATION: Duration = Duration::from_secs(10 * 60);
-const STEAM_RESTART_PERIOD: Duration = Duration::from_secs(3 * 3600);
+const MAX_UPDATE_DURATION: Duration = Duration::from_secs(60 * 60);
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -62,133 +61,53 @@ fn print_error<E: Into<Error>>(e: E) {
     }
 }
 
-async fn run(healthchecks_url: Option<&str>) -> Result<(), Error> {
+async fn run(healthchecks_url: Option<&str>) -> Result<()> {
     let min_minutes_between_updates = env::var("MIN_MINUTES_BETWEEN_UPDATES")
         .map_err(Error::from)
         .and_then(|x| Ok(x.parse()?))
         .unwrap_or(60);
-    let mut consecutive_update_failures = 0;
 
     loop {
-        let mut steam = start_steam()?;
-        sleep_secs(60).await;
-
-        let steam_start_time = Instant::now();
-        while steam_start_time.elapsed() < STEAM_RESTART_PERIOD {
-            let update_start_time = Instant::now();
-            let f = run_distance_db_populator();
-            pin_mut!(f);
-            match time::timeout(MAX_UPDATE_DURATION, f).await {
-                Ok(Ok(())) => {
-                    if let Some(url) = healthchecks_url {
-                        healthchecks_send_ping(url).await.ok();
-                    }
-
-                    time::sleep(
-                        Duration::from_secs(60 * min_minutes_between_updates)
-                            .checked_sub(update_start_time.elapsed())
-                            .unwrap_or_default(),
-                    )
-                    .await;
-
-                    consecutive_update_failures = 0;
+        let update_start_time = Instant::now();
+        let f = run_distance_db_populator();
+        pin_mut!(f);
+        match time::timeout(MAX_UPDATE_DURATION, f).await {
+            Ok(_) => {
+                if let Some(url) = healthchecks_url {
+                    healthchecks_send_ping(url).await.ok();
                 }
-                Ok(Err(e)) => {
-                    print_error(e);
 
-                    info!("Sleeping for 30 seconds...");
-                    thread::sleep(Duration::from_secs(30));
-                }
-                Err(_) => {
-                    print_error(format_err!("distance-db-populator ran for too long"));
-
-                    if consecutive_update_failures != 0 {
-                        let i = consecutive_update_failures % 3;
-                        if i == 0 {
-                            break;
-                        } else {
-                            sleep_secs(5 * 60).await;
-                        }
-                    }
-
-                    consecutive_update_failures += 1;
-                }
-            }
-        }
-
-        shutdown_steam().await?;
-        match time::timeout(Duration::from_secs(30), steam.wait()).await {
-            Ok(x) => {
-                x?;
+                time::sleep(
+                    Duration::from_secs(60 * min_minutes_between_updates)
+                        .checked_sub(update_start_time.elapsed())
+                        .unwrap_or_default(),
+                )
+                .await;
             }
             Err(_) => {
-                steam.kill().await?;
+                print_error(format_err!("distance-db-populator ran for too long"));
             }
         }
     }
 }
 
-async fn sleep_secs(secs: u64) {
-    time::sleep(Duration::from_secs(secs)).await;
-}
-
-fn start_steam() -> Result<Child, Error> {
-    info!("Starting Steam");
-
-    let steam_user = env::var("STEAM_USERNAME");
-    let steam_pass = env::var("STEAM_PASSWORD");
-
-    let mut command = Command::new("steam");
-    match (steam_user, steam_pass) {
-        (Ok(user), Ok(pass)) => {
-            command.args(["-login", &user, &pass]);
-        }
-        (Ok(user), _) => {
-            command.args(["-login", &user]);
-        }
-        _ => {}
-    }
-
-    let child = command
-        .args(["-noreactlogin", "-no-browser", "-nofriendsui"])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .context("Couldn't spawn Steam process")?;
-
-    Ok(child)
-}
-
-async fn shutdown_steam() -> Result<ExitStatus, Error> {
-    info!("Shutting down Steam");
-    Command::new("steam")
-        .arg("-shutdown")
-        .status()
-        .await
-        .context("Error shutting down Steam")
-}
-
-async fn run_distance_db_populator() -> Result<(), Error> {
+async fn run_distance_db_populator() -> Result<ExitStatus> {
     info!("Starting distance-db-populator");
     let mut child = Command::new("./distance-db-populator")
         .spawn()
         .context("Couldn't spawn the distance-db-populator process")?;
 
-    let exit_code = child.wait().await?.code();
-    match exit_code {
-        Some(code) if code != 0 => {
-            Err(format_err!("distance-db-populator exited with code {code}"))
-        }
-        _ => Ok(()),
-    }
+    Ok(child.wait().await?)
 }
 
-async fn healthchecks_send_ping(healthchecks_url: &str) -> Result<(), Error> {
-    surf::get(healthchecks_url)
-        .send()
+async fn healthchecks_send_ping(healthchecks_url: &str) -> Result<()> {
+    let err_msg = "error sending fail signal";
+
+    reqwest::get(healthchecks_url)
         .await
-        .map_err(|e| format_err!("Error sending fail signal: {}", e))?;
+        .context(err_msg)?
+        .error_for_status()
+        .context(err_msg)?;
 
     Ok(())
 }
@@ -197,8 +116,10 @@ async fn healthchecks_send_fail_signal(
     healthchecks_url: &str,
     error: impl Display,
 ) -> Result<(), Error> {
-    surf::post(format!("{healthchecks_url}/fail"))
-        .body(format!("[distance-db-populator-manager] error: {error}"))
+    let client = reqwest::Client::new();
+    client
+        .post(format!("{healthchecks_url}/fail"))
+        .body(format!("[manager] error: {error}"))
         .send()
         .await
         .map_err(|e| format_err!("Error sending fail signal: {}", e))?;

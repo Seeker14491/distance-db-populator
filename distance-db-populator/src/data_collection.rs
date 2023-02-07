@@ -2,16 +2,16 @@ use crate::common::{DistanceData, Level, ScoreLeaderboardEntry, TimeLeaderboardE
 use anyhow::Error;
 use distance_steam_data_client::{Client as GrpcClient, LeaderboardEntry};
 use distance_util::LeaderboardGameMode;
-use futures::stream::FuturesUnordered;
+use futures::stream::{self, FuturesUnordered};
 use futures::{future, StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
-use steamworks::ugc::MatchingUgcType;
 
 pub async fn run(
-    steam: steamworks::Client,
+    web_client: reqwest::Client,
     grpc_client: GrpcClient,
+    web_api_key: impl Into<String>,
 ) -> Result<DistanceData, Error> {
     let mut data = DistanceData::new();
 
@@ -41,37 +41,38 @@ pub async fn run(
 
     let pb = ProgressBar::new_spinner();
     pb.set_message("Querying all workshop levels");
-    let workshop_levels: Vec<Level> = steam
-        .query_all_ugc(MatchingUgcType::ItemsReadyToUse)
-        .match_any_tags()
-        .required_tags(["Sprint", "Challenge", "Stunt"].iter().copied())
-        .run()
-        .inspect(|_| pb.tick())
-        .try_filter_map(|details| {
-            let is_sprint = details.tags.iter().any(|tag| tag == "Sprint");
-            let is_challenge = details.tags.iter().any(|tag| tag == "Challenge");
-            let is_stunt = details.tags.iter().any(|tag| tag == "Stunt");
 
-            let level = if (is_sprint || is_challenge || is_stunt)
-                && !details.file_name.is_empty()
-                && details.file_size > 0
-            {
-                Some(Level {
-                    name: details.title.clone(),
-                    is_sprint,
-                    is_challenge,
-                    is_stunt,
-                    workshop_level_details: Some(details),
-                    ..Level::default()
-                })
-            } else {
-                None
-            };
+    let workshop_levels: Vec<Level> =
+        steam_workshop::query_all_files(web_client.clone(), web_api_key.into(), 233610)
+            .inspect(|_| pb.tick())
+            .map_ok(|x| stream::iter(x.into_iter().map(Ok::<_, Error>)))
+            .try_flatten()
+            .try_filter_map(|details| {
+                let is_sprint = details.tags.iter().any(|tag| tag.tag == "Sprint");
+                let is_challenge = details.tags.iter().any(|tag| tag.tag == "Challenge");
+                let is_stunt = details.tags.iter().any(|tag| tag.tag == "Stunt");
 
-            future::ready(Ok(level))
-        })
-        .try_collect()
-        .await?;
+                let level = if (is_sprint || is_challenge || is_stunt)
+                    && !details.filename.is_empty()
+                    && details.file_size > 0
+                {
+                    Some(Level {
+                        name: details.title.clone(),
+                        is_sprint,
+                        is_challenge,
+                        is_stunt,
+                        workshop_level_details: Some(details),
+                        ..Level::default()
+                    })
+                } else {
+                    None
+                };
+
+                future::ready(Ok(level))
+            })
+            .try_collect()
+            .await?;
+
     data.levels.extend(workshop_levels.into_iter());
     pb.finish();
 
@@ -161,10 +162,10 @@ pub async fn run(
                 level
                     .workshop_level_details
                     .as_ref()
-                    .map(|details| details.steam_id_owner)
+                    .map(|details| details.creator)
             })
             .for_each(|steam_id| {
-                user_ids.insert(steam_id.as_u64());
+                user_ids.insert(steam_id);
             });
 
         // Sprint players
@@ -238,11 +239,11 @@ async fn get_mode_entries(
             let leaderboard_name_string = if let Some(details) = &level.workshop_level_details {
                 // Workshop level
                 let filename_without_extension =
-                    &details.file_name[0..(details.file_name.len().saturating_sub(".bytes".len()))];
+                    &details.filename[0..(details.filename.len().saturating_sub(".bytes".len()))];
                 distance_util::create_leaderboard_name_string(
                     filename_without_extension,
                     game_mode,
-                    Some(details.steam_id_owner.into()),
+                    Some(details.creator),
                 )
             } else {
                 // Official level
