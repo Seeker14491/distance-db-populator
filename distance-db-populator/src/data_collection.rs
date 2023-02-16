@@ -2,11 +2,13 @@ use crate::common::{DistanceData, Level, ScoreLeaderboardEntry, TimeLeaderboardE
 use anyhow::Error;
 use distance_steam_data_client::{Client as GrpcClient, LeaderboardEntry};
 use distance_util::LeaderboardGameMode;
-use futures::stream::{self, FuturesUnordered};
+use futures::stream::{self};
 use futures::{future, StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
+use tap::{Pipe, TapFallible};
+use tracing::{event, Level as TracingLevel};
 
 pub async fn run(
     web_client: reqwest::Client,
@@ -261,6 +263,12 @@ async fn get_mode_entries(
             let level_entries = client
                 .leaderboard_entries_all(&leaderboard_name_string)
                 .await
+                .tap_err(|err| {
+                    event!(
+                        TracingLevel::WARN,
+                        "failed to download entries for `{leaderboard_name_string}` {err}"
+                    )
+                })
                 .ok()?;
 
             let mut level_entries_with_rank = Vec::with_capacity(level_entries.len());
@@ -283,7 +291,8 @@ async fn get_mode_entries(
 
             Some((i, level_entries_with_rank))
         })
-        .collect::<FuturesUnordered<_>>()
+        .pipe(stream::iter)
+        .buffer_unordered(4)
         .inspect(|_| pb.inc(1))
         .filter_map(future::ready)
         .collect()
