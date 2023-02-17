@@ -1,6 +1,6 @@
 CREATE TABLE levels
 (
-    id           serial PRIMARY KEY,
+    id           bigint PRIMARY KEY,
     name         character varying NOT NULL,
     is_sprint    boolean           NOT NULL,
     is_challenge boolean           NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE users
 
 CREATE TABLE workshop_level_details
 (
-    level_id        integer PRIMARY KEY REFERENCES levels,
+    level_id        bigint PRIMARY KEY REFERENCES levels,
     author_steam_id bigint REFERENCES users,
     description     character varying        NOT NULL,
     time_created    timestamp with time zone NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE workshop_level_details
 
 CREATE TABLE sprint_leaderboard_entries
 (
-    level_id   integer REFERENCES levels,
+    level_id   bigint REFERENCES levels,
     steam_id   bigint REFERENCES users,
     time       integer NOT NULL,
     rank       integer NOT NULL CHECK (rank > 0),
@@ -43,7 +43,7 @@ CREATE TABLE sprint_leaderboard_entries
 
 CREATE TABLE challenge_leaderboard_entries
 (
-    level_id   integer REFERENCES levels,
+    level_id   bigint REFERENCES levels,
     steam_id   bigint REFERENCES users,
     time       integer NOT NULL,
     rank       integer NOT NULL CHECK ( rank > 0 ),
@@ -53,7 +53,7 @@ CREATE TABLE challenge_leaderboard_entries
 
 CREATE TABLE stunt_leaderboard_entries
 (
-    level_id   integer REFERENCES levels,
+    level_id   bigint REFERENCES levels,
     steam_id   bigint REFERENCES users,
     score      integer NOT NULL,
     rank       integer NOT NULL CHECK (rank > 0),

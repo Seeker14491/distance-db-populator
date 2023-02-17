@@ -32,26 +32,26 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
 
     println!("Inserting levels into the database");
     let stmt = &transaction
-        .prepare("INSERT INTO levels (name, is_sprint, is_challenge, is_stunt) VALUES ($1, $2, $3, $4) RETURNING id")
+        .prepare("INSERT INTO levels (id, name, is_sprint, is_challenge, is_stunt) VALUES ($1, $2, $3, $4, $5)")
         .await?;
-    let level_ids: Vec<i32> = data
+    let level_ids: Vec<_> = data
         .levels
         .iter()
         .map(|level| async move {
-            let row = &transaction
+            transaction
                 .query(
                     stmt,
                     &[
+                        &level.id,
                         &level.name,
                         &level.is_sprint,
                         &level.is_challenge,
                         &level.is_stunt,
                     ],
                 )
-                .await?[0];
-            let id: i32 = row.get(0);
+                .await?;
 
-            Ok::<_, Error>(id)
+            Ok::<_, Error>(level.id)
         })
         .collect::<FuturesOrdered<_>>()
         .try_collect()
@@ -106,7 +106,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                 let mut writer = Box::pin(BinaryCopyInWriter::new(
                     sink,
                     &[
-                        PgType::INT4,
+                        PgType::INT8,
                         PgType::INT8,
                         PgType::INT4,
                         PgType::INT4,
@@ -142,7 +142,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                 let mut writer = Box::pin(BinaryCopyInWriter::new(
                     sink,
                     &[
-                        PgType::INT4,
+                        PgType::INT8,
                         PgType::INT8,
                         PgType::INT4,
                         PgType::INT4,
@@ -178,7 +178,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                 let mut writer = Box::pin(BinaryCopyInWriter::new(
                     sink,
                     &[
-                        PgType::INT4,
+                        PgType::INT8,
                         PgType::INT8,
                         PgType::INT4,
                         PgType::INT4,

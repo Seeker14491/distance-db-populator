@@ -1,5 +1,6 @@
 use crate::common::{DistanceData, Level, ScoreLeaderboardEntry, TimeLeaderboardEntry, User};
 use anyhow::Error;
+use az::Az;
 use distance_steam_data_client::{Client as GrpcClient, LeaderboardEntry};
 use distance_util::LeaderboardGameMode;
 use futures::stream::{self};
@@ -18,13 +19,14 @@ pub async fn run(
     let mut data = DistanceData::new();
 
     let mut official_levels: HashMap<&'static str, Level> = HashMap::new();
-    for game_mode in &[
-        LeaderboardGameMode::Sprint,
-        LeaderboardGameMode::Challenge,
-        LeaderboardGameMode::Stunt,
+    for (game_mode, idx_offset) in &[
+        (LeaderboardGameMode::Sprint, -1000),
+        (LeaderboardGameMode::Challenge, -2000),
+        (LeaderboardGameMode::Stunt, -3000),
     ] {
-        for &level_name in game_mode.official_level_names() {
+        for (idx, &level_name) in game_mode.official_level_names().iter().enumerate() {
             let entry = official_levels.entry(level_name).or_insert(Level {
+                id: idx_offset - idx.az::<i64>(),
                 name: level_name.to_owned(),
                 is_sprint: false,
                 is_challenge: false,
@@ -59,6 +61,7 @@ pub async fn run(
                     && details.file_size > 0
                 {
                     Some(Level {
+                        id: details.published_file_id as i64,
                         name: details.title.clone(),
                         is_sprint,
                         is_challenge,

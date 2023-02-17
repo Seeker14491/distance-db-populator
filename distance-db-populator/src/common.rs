@@ -14,6 +14,7 @@ impl DistanceData {
 
 #[derive(Debug, Clone, Default)]
 pub struct Level {
+    pub id: i64,
     pub name: String,
     pub is_sprint: bool,
     pub is_challenge: bool,

@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+az = "1"
 chrono = "0.4"
 color-backtrace = "0.5"
 distance-steam-data-client = { git = "https://github.com/Seeker14491/DistanceSteamDataServer.git" }
