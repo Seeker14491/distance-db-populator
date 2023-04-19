@@ -26,10 +26,6 @@ async fn main() -> Result<(), Error> {
     let grpc_server_address = env::var("GRPC_SERVER_ADDRESS")
         .context("The environment variable `GRPC_SERVER_ADDRESS` must be set.")?;
 
-    println!("Connecting to database...");
-    let mut db = establish_connection().await?;
-    println!("Connected to database.");
-
     let distance_data = {
         let steam_web_api_key = env::var("STEAM_WEB_API_KEY")
             .expect("environment variable STEAM_WEB_API_KEY is not set");
@@ -55,6 +51,10 @@ async fn main() -> Result<(), Error> {
     };
 
     print_stats(&distance_data);
+
+    println!("Connecting to database...");
+    let mut db = establish_connection().await?;
+    println!("Connected to database.");
 
     data_storing::run(&mut db, distance_data)
         .await
