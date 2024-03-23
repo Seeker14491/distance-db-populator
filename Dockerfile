@@ -1,4 +1,4 @@
-FROM lukemathwalker/cargo-chef:latest-rust-slim-bullseye AS chef
+FROM lukemathwalker/cargo-chef:latest-rust-slim-bookworm AS chef
 WORKDIR /app
 
 FROM chef AS planner
@@ -12,7 +12,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release
 
-FROM debian:bullseye-slim AS runtime
+FROM debian:bookworm-slim AS runtime
 RUN mkdir /data
 WORKDIR /app
 COPY --from=builder /app/target/release/distance-db-populator /app/target/release/distance-db-populator-manager ./

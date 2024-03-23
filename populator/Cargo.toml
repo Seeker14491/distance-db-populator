@@ -8,15 +8,17 @@ edition = "2021"
 anyhow = "1"
 az = "1"
 chrono = "0.4"
-color-backtrace = "0.5"
+color-backtrace = "0.6"
 distance-steam-data-client = { git = "https://github.com/Seeker14491/DistanceSteamDataServer.git" }
-distance-util = { git = "https://github.com/Seeker14491/distance-util.git", tag = "v0.1.0"}
+distance-util = { git = "https://github.com/Seeker14491/distance-util.git", tag = "v0.1.0" }
 dotenv = "0.15"
 futures = "0.3"
 indicatif = "0.17"
-itertools = "0.10"
+itertools = "0.12"
 num-traits = "0.2"
-reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"]}
+reqwest = { version = "0.12", default-features = false, features = [
+  "rustls-tls",
+] }
 steam-workshop = { git = "https://github.com/Seeker14491/steam-workshop.git" }
 tap = "1"
 tokio = { version = "1", features = ["macros", "rt"] }
