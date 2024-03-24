@@ -201,7 +201,7 @@ pub async fn run(
 
         println!("Resolving player + author names.");
         let mut user_names = Vec::with_capacity(user_ids.len());
-        for (i, chunk) in user_ids.chunks(4096).enumerate() {
+        for (i, chunk) in user_ids.chunks(1000).enumerate() {
             println!("request #{i}");
             user_names.extend(grpc_client.persona_names(chunk.to_vec()).await?);
         }
