@@ -72,9 +72,14 @@ async fn run(healthchecks_url: Option<&str>) -> Result<()> {
         let f = run_distance_db_populator();
         pin_mut!(f);
         match time::timeout(MAX_UPDATE_DURATION, f).await {
-            Ok(_) => {
-                if let Some(url) = healthchecks_url {
-                    healthchecks_send_ping(url).await.ok();
+            Ok(res) => {
+                match res {
+                    Ok(status) if status.success() => {
+                        if let Some(url) = healthchecks_url {
+                            healthchecks_send_ping(url).await.ok();
+                        }
+                    }
+                    _ => {}
                 }
 
                 time::sleep(
