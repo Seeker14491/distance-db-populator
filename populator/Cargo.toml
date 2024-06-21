@@ -14,7 +14,7 @@ distance-util = { git = "https://github.com/Seeker14491/distance-util.git", tag 
 dotenv = "0.15"
 futures = "0.3"
 indicatif = "0.17"
-itertools = "0.12"
+itertools = "0.13"
 num-traits = "0.2"
 reqwest = { version = "0.12", default-features = false, features = [
   "rustls-tls",
