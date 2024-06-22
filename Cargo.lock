@@ -427,6 +427,9 @@ dependencies = [
  "itertools 0.13.0",
  "num-traits",
  "reqwest",
+ "serde",
+ "serde_json",
+ "serde_with",
  "steam-workshop",
  "tap",
  "tokio",
@@ -1041,9 +1044,9 @@ dependencies = [
 
 [[package]]
 name = "lazy_static"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"
@@ -1806,7 +1809,7 @@ checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 [[package]]
 name = "steam-workshop"
 version = "0.1.0"
-source = "git+https://github.com/Seeker14491/steam-workshop.git#4c90314496bce2f4b6048268544603b622ea2bf8"
+source = "git+https://github.com/Seeker14491/steam-workshop.git#7c83a8e5ccfc47f018a7820abc225704856b2121"
 dependencies = [
  "anyhow",
  "ez-stream",
@@ -1814,7 +1817,6 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "serde_with",
 ]
 
 [[package]]

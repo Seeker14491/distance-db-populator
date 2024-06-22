@@ -64,7 +64,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
 
     let futs = FuturesUnordered::new();
     for (level_id, level) in level_ids.iter().zip(data.levels.iter()) {
-        if let Some(details) = &level.workshop_level_details {
+        if let Some((details, _json)) = &level.workshop_level_details {
             let visibility = match details.visibility {
                 0 => "public",
                 1 => "friends_only",

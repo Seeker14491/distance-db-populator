@@ -1,4 +1,6 @@
-use steam_workshop::types::PublishedFileDetails;
+use serde::Deserialize;
+use serde_json::Value as JsonValue;
+use serde_with::{serde_as, DisplayFromStr};
 
 #[derive(Debug, Clone, Default)]
 pub struct DistanceData {
@@ -19,10 +21,47 @@ pub struct Level {
     pub is_sprint: bool,
     pub is_challenge: bool,
     pub is_stunt: bool,
-    pub workshop_level_details: Option<PublishedFileDetails>,
+    pub workshop_level_details: Option<(PublishedFileDetailsSubset, JsonValue)>,
     pub sprint_entries: Vec<TimeLeaderboardEntry>,
     pub challenge_entries: Vec<TimeLeaderboardEntry>,
     pub stunt_entries: Vec<ScoreLeaderboardEntry>,
+}
+
+#[serde_as]
+#[derive(Debug, Clone, Deserialize)]
+pub struct PublishedFileDetailsSubset {
+    #[serde_as(as = "DisplayFromStr")]
+    #[serde(rename = "publishedfileid")]
+    pub published_file_id: i64,
+
+    #[serde_as(as = "DisplayFromStr")]
+    pub creator: u64,
+
+    pub filename: String,
+
+    #[serde_as(as = "DisplayFromStr")]
+    pub file_size: i64,
+
+    pub preview_url: String,
+    pub title: String,
+    pub file_description: String,
+    pub time_created: u64,
+    pub time_updated: u64,
+    pub visibility: u32,
+    pub tags: Vec<Tag>,
+    pub vote_data: VoteData,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Tag {
+    pub tag: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct VoteData {
+    pub score: f32,
+    pub votes_up: i64,
+    pub votes_down: i64,
 }
 
 #[derive(Debug, Copy, Clone)]

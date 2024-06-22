@@ -1,4 +1,7 @@
-use crate::common::{DistanceData, Level, ScoreLeaderboardEntry, TimeLeaderboardEntry, User};
+use crate::common::{
+    DistanceData, Level, PublishedFileDetailsSubset, ScoreLeaderboardEntry, TimeLeaderboardEntry,
+    User,
+};
 use anyhow::Error;
 use az::Az;
 use distance_steam_data_client::{Client as GrpcClient, LeaderboardEntry};
@@ -7,6 +10,7 @@ use futures::stream::{self};
 use futures::{future, StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use itertools::Itertools;
+use serde_json::Value as JsonValue;
 use std::collections::{HashMap, HashSet};
 use tap::{Pipe, TapFallible};
 use tracing::{event, Level as TracingLevel};
@@ -46,39 +50,41 @@ pub async fn run(
     let pb = ProgressBar::new_spinner();
     pb.set_message("Querying all workshop levels");
 
-    let workshop_levels: Vec<Level> =
+    let all_workshop_json: Vec<JsonValue> =
         steam_workshop::query_all_files(web_client.clone(), web_api_key.into(), 233610)
             .inspect(|_| pb.tick())
             .map_ok(|x| stream::iter(x.into_iter().map(Ok::<_, Error>)))
             .try_flatten()
-            .try_filter_map(|details| {
-                let is_sprint = details.tags.iter().any(|tag| tag.tag == "Sprint");
-                let is_challenge = details.tags.iter().any(|tag| tag.tag == "Challenge");
-                let is_stunt = details.tags.iter().any(|tag| tag.tag == "Stunt");
-
-                let level = if (is_sprint || is_challenge || is_stunt)
-                    && !details.filename.is_empty()
-                    && details.file_size > 0
-                {
-                    Some(Level {
-                        id: details.published_file_id as i64,
-                        name: details.title.clone(),
-                        is_sprint,
-                        is_challenge,
-                        is_stunt,
-                        workshop_level_details: Some(details),
-                        ..Level::default()
-                    })
-                } else {
-                    None
-                };
-
-                future::ready(Ok(level))
-            })
             .try_collect()
             .await?;
+    let filtered_workshop_data = all_workshop_json.into_iter().filter_map(|json| {
+        let details: PublishedFileDetailsSubset = serde_json::from_value(json.clone()).ok()?;
+        Some((details, json))
+    });
+    let workshop_levels = filtered_workshop_data.filter_map(|(details, json)| {
+        let is_sprint = details.tags.iter().any(|x| x.tag == "Sprint");
+        let is_challenge = details.tags.iter().any(|x| x.tag == "Challenge");
+        let is_stunt = details.tags.iter().any(|x| x.tag == "Stunt");
 
-    data.levels.extend(workshop_levels.into_iter());
+        if (is_sprint || is_challenge || is_stunt)
+            && !details.filename.is_empty()
+            && details.file_size > 0
+        {
+            Some(Level {
+                id: details.published_file_id,
+                name: details.title.clone(),
+                is_sprint,
+                is_challenge,
+                is_stunt,
+                workshop_level_details: Some((details, json)),
+                ..Level::default()
+            })
+        } else {
+            None
+        }
+    });
+
+    data.levels.extend(workshop_levels);
     pb.finish();
 
     println!("Downloading Sprint leaderboard entries");
@@ -167,7 +173,7 @@ pub async fn run(
                 level
                     .workshop_level_details
                     .as_ref()
-                    .map(|details| details.creator)
+                    .map(|(details, _json)| details.creator)
             })
             .for_each(|steam_id| {
                 user_ids.insert(steam_id);
@@ -241,19 +247,20 @@ async fn get_mode_entries(
                 return None;
             }
 
-            let leaderboard_name_string = if let Some(details) = &level.workshop_level_details {
-                // Workshop level
-                let filename_without_extension =
-                    &details.filename[0..(details.filename.len().saturating_sub(".bytes".len()))];
-                distance_util::create_leaderboard_name_string(
-                    filename_without_extension,
-                    game_mode,
-                    Some(details.creator),
-                )
-            } else {
-                // Official level
-                distance_util::create_leaderboard_name_string(&level.name, game_mode, None)
-            };
+            let leaderboard_name_string =
+                if let Some((details, _json)) = &level.workshop_level_details {
+                    // Workshop level
+                    let filename_without_extension = &details.filename
+                        [0..(details.filename.len().saturating_sub(".bytes".len()))];
+                    distance_util::create_leaderboard_name_string(
+                        filename_without_extension,
+                        game_mode,
+                        Some(details.creator),
+                    )
+                } else {
+                    // Official level
+                    distance_util::create_leaderboard_name_string(&level.name, game_mode, None)
+                };
 
             leaderboard_name_string.map(|s| (i, s))
         })
