@@ -285,10 +285,8 @@ checksum = "a21f936df1771bf62b77f047b726c4625ff2e8aa607c01ec06e5a05bd8463401"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
- "js-sys",
  "num-traits",
  "serde",
- "wasm-bindgen",
  "windows-targets 0.52.5",
 ]
 
@@ -417,7 +415,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "az",
- "chrono",
  "color-backtrace",
  "distance-steam-data-client",
  "distance-util",
@@ -1302,9 +1299,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d2234cdee9408b523530a9b6d2d6b373d1db34f6a8e51dc03ded1828d7fb67c"
 dependencies = [
  "bytes",
- "chrono",
  "fallible-iterator",
  "postgres-protocol",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

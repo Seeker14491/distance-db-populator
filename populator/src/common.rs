@@ -41,27 +41,13 @@ pub struct PublishedFileDetailsSubset {
 
     #[serde_as(as = "DisplayFromStr")]
     pub file_size: i64,
-
-    pub preview_url: String,
     pub title: String,
-    pub file_description: String,
-    pub time_created: u64,
-    pub time_updated: u64,
-    pub visibility: u32,
     pub tags: Vec<Tag>,
-    pub vote_data: VoteData,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Tag {
     pub tag: String,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct VoteData {
-    pub score: f32,
-    pub votes_up: i64,
-    pub votes_down: i64,
 }
 
 #[derive(Debug, Copy, Clone)]

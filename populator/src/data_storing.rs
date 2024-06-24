@@ -1,6 +1,5 @@
 use crate::common::DistanceData;
 use anyhow::Error;
-use chrono::{TimeZone, Utc};
 use futures::prelude::*;
 use futures::stream::{self, FuturesOrdered, FuturesUnordered};
 use itertools::Itertools;
@@ -59,36 +58,20 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
 
     println!("Inserting the rest of the data into the database");
     let wld_stmt = &transaction
-        .prepare("INSERT INTO workshop_level_details VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)")
+        .prepare("INSERT INTO workshop_level_details VALUES ($1, $2, $3)")
         .await?;
 
     let futs = FuturesUnordered::new();
     for (level_id, level) in level_ids.iter().zip(data.levels.iter()) {
-        if let Some((details, _json)) = &level.workshop_level_details {
-            let visibility = match details.visibility {
-                0 => "public",
-                1 => "friends_only",
-                2 => "private",
-                _ => panic!("unexpected visibility discriminant: {}", details.visibility),
-            };
+        if let Some((details, json)) = &level.workshop_level_details {
             let fut = async move {
                 transaction
                     .execute(
                         wld_stmt,
                         &[
-                            &level_id,
-                            &(details.creator as i64),
-                            &details.file_description,
-                            &Utc.timestamp_opt(details.time_created as i64, 0).unwrap(),
-                            &Utc.timestamp_opt(details.time_updated as i64, 0).unwrap(),
-                            &visibility,
+                            level_id,
+                            json,
                             &details.tags.iter().map(|tag| &tag.tag).join(",").as_str(),
-                            &details.preview_url,
-                            &details.filename,
-                            &(details.file_size as i32),
-                            &(details.vote_data.votes_up as i32),
-                            &(details.vote_data.votes_down as i32),
-                            &details.vote_data.score,
                         ],
                     )
                     .map_ok(drop)
