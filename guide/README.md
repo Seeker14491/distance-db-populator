@@ -1,8 +1,87 @@
 # Distance DB guide
 
-The Distance database contains data on all sprint, challenge, and stunt maps in Distance. You can perform queries to the database at [this link](https://distance-db.seekr.pw/). Queries are written in the SQL language, specifically the dialect used by PostgreSQL. If you don't know SQL, or need a refresher, I found [sqltutorial.org](https://www.sqltutorial.org/) helpful. Here is a view of the database schema:
+The Distance database contains data on all sprint, challenge, and stunt maps in Distance. You can perform queries to the database at [this link](https://distance-db-sql.seekr.pw/). Queries are written in the SQL language, specifically the dialect used by PostgreSQL. If you don't know SQL, or need a refresher, I found [sqltutorial.org](https://www.sqltutorial.org/) helpful. Here is a view of the database schema:
 
 ![](schema.svg)
+
+The `workshop_level_details` table contains a `raw_details` column which holds a large amount of metadata of each workshop level in JSON format. All other `workshop_level_details` columns are generated from this data. Below is a sample of this JSON data:
+
+<details>
+<summary>`raw_details` sample</summary>
+
+```json
+{
+  "result": 1,
+  "publishedfileid": "3274152841",
+  "creator": "76561198314429818",
+  "creator_appid": 233610,
+  "consumer_appid": 233610,
+  "consumer_shortcutid": 0,
+  "filename": "cl06 end to a violent heart.bytes",
+  "file_size": "772518",
+  "preview_file_size": "438069",
+  "file_url": "https://steamusercontent-a.akamaihd.net/ugc/2455105898804613920/FF93C0C046CE59648198DD647C993ABF5E793B8D/",
+  "preview_url": "https://steamuserimages-a.akamaihd.net/ugc/2455105898804614047/9276AC84466FA91F42A6A1104F3905EA6E49F977/",
+  "url": "",
+  "hcontent_file": "2455105898804613920",
+  "hcontent_preview": "2455105898804614047",
+  "title": "CL06 End To A Violent Heart",
+  "file_description": "You're inside the tower. Flight through the guardian, avoid all obstacles and reach to the Core to end this mess!",
+  "time_created": 1719183533,
+  "time_updated": 1719183533,
+  "visibility": 0,
+  "flags": 1536,
+  "workshop_file": false,
+  "workshop_accepted": false,
+  "show_subscribe_all": false,
+  "num_comments_public": 0,
+  "banned": false,
+  "ban_reason": "",
+  "banner": "76561197960265728",
+  "can_be_deleted": true,
+  "app_name": "Distance",
+  "file_type": 0,
+  "can_subscribe": true,
+  "subscriptions": 3,
+  "favorited": 0,
+  "followers": 0,
+  "lifetime_subscriptions": 3,
+  "lifetime_favorited": 0,
+  "lifetime_followers": 0,
+  "lifetime_playtime": "74",
+  "lifetime_playtime_sessions": "1",
+  "views": 1,
+  "num_children": 0,
+  "num_reports": 0,
+  "tags": [
+    {
+      "tag": "level",
+      "display_name": "level"
+    },
+    {
+      "tag": "Sprint",
+      "display_name": "Sprint"
+    },
+    {
+      "tag": "Advanced",
+      "display_name": "Advanced"
+    }
+  ],
+  "vote_data": {
+    "score": 0,
+    "votes_up": 0,
+    "votes_down": 0
+  },
+  "language": 0,
+  "maybe_inappropriate_sex": false,
+  "maybe_inappropriate_violence": false,
+  "revision_change_number": "5",
+  "revision": 1,
+  "ban_text_check_result": 5
+}
+```
+
+</details>
 
 ## Example queries
 
@@ -17,7 +96,7 @@ ORDER BY levels_published DESC
 LIMIT 100
 ```
 
-[Link](https://distance-db-sql.seekr.pw/?query=--%20Authors%20with%20most%20levels%20published%0ASELECT%20name%2C%0A%20%20%20%20%20%20%20COUNT(*)%20levels_published%0AFROM%20users%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20users.steam_id%20%3D%20wld.author_steam_id%0AGROUP%20BY%20steam_id%0AORDER%20BY%20levels_published%20DESC%0ALIMIT%20100)
+[Link](<https://distance-db-sql.seekr.pw/?query=--%20Authors%20with%20most%20levels%20published%0ASELECT%20name%2C%0A%20%20%20%20%20%20%20COUNT(*)%20levels_published%0AFROM%20users%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20users.steam_id%20%3D%20wld.author_steam_id%0AGROUP%20BY%20steam_id%0AORDER%20BY%20levels_published%20DESC%0ALIMIT%20100>)
 
 ---
 
@@ -33,7 +112,7 @@ ORDER BY avg_score DESC
 LIMIT 100
 ```
 
-[Link](https://distance-db-sql.seekr.pw/?query=--%20Authors%20with%20highest%20average%20level%20score%0ASELECT%20name%2C%0A%20%20%20%20%20%20%20AVG(score)%20avg_score%2C%0A%20%20%20%20%20%20%20COUNT(*)%20%20%20levels_published%0AFROM%20users%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20users.steam_id%20%3D%20wld.author_steam_id%0AGROUP%20BY%20steam_id%0AORDER%20BY%20avg_score%20DESC%0ALIMIT%20100)
+[Link](<https://distance-db-sql.seekr.pw/?query=--%20Authors%20with%20highest%20average%20level%20score%0ASELECT%20name%2C%0A%20%20%20%20%20%20%20AVG(score)%20avg_score%2C%0A%20%20%20%20%20%20%20COUNT(*)%20%20%20levels_published%0AFROM%20users%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20users.steam_id%20%3D%20wld.author_steam_id%0AGROUP%20BY%20steam_id%0AORDER%20BY%20avg_score%20DESC%0ALIMIT%20100>)
 
 ---
 
@@ -88,7 +167,7 @@ ORDER BY firsts DESC
 LIMIT 100
 ```
 
-[Link](https://distance-db-sql.seekr.pw/?query=--%20Players%20with%20most%20amount%20of%201st%20places%20in%20Sprint%20levels%0ASELECT%20name%2C%20COUNT(*)%20firsts%0AFROM%20users%0A%20%20%20%20%20%20%20%20%20JOIN%20sprint_leaderboard_entries%20sle%20on%20users.steam_id%20%3D%20sle.steam_id%0AWHERE%20rank%20%3D%201%0AGROUP%20BY%20name%0AORDER%20BY%20firsts%20DESC%0ALIMIT%20100)
+[Link](<https://distance-db-sql.seekr.pw/?query=--%20Players%20with%20most%20amount%20of%201st%20places%20in%20Sprint%20levels%0ASELECT%20name%2C%20COUNT(*)%20firsts%0AFROM%20users%0A%20%20%20%20%20%20%20%20%20JOIN%20sprint_leaderboard_entries%20sle%20on%20users.steam_id%20%3D%20sle.steam_id%0AWHERE%20rank%20%3D%201%0AGROUP%20BY%20name%0AORDER%20BY%20firsts%20DESC%0ALIMIT%20100>)
 
 ---
 
@@ -104,7 +183,7 @@ WHERE level_id IN (SELECT level_id
                    HAVING COUNT(*) = 1)
 ```
 
-[Link](https://distance-db-sql.seekr.pw/?query=--%20Sprint%20levels%20with%20only%20one%20time%20on%20the%20leaderboards%0ASELECT%20levels.name%20%22level%22%2C%20u.name%20%22player%22%0AFROM%20levels%0A%20%20%20%20%20%20%20%20%20JOIN%20sprint_leaderboard_entries%20sle%20on%20levels.id%20%3D%20sle.level_id%0A%20%20%20%20%20%20%20%20%20JOIN%20users%20u%20on%20sle.steam_id%20%3D%20u.steam_id%0AWHERE%20level_id%20IN%20(SELECT%20level_id%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20FROM%20sprint_leaderboard_entries%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20GROUP%20BY%20level_id%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20HAVING%20COUNT(*)%20%3D%201))
+[Link](<https://distance-db-sql.seekr.pw/?query=--%20Sprint%20levels%20with%20only%20one%20time%20on%20the%20leaderboards%0ASELECT%20levels.name%20%22level%22%2C%20u.name%20%22player%22%0AFROM%20levels%0A%20%20%20%20%20%20%20%20%20JOIN%20sprint_leaderboard_entries%20sle%20on%20levels.id%20%3D%20sle.level_id%0A%20%20%20%20%20%20%20%20%20JOIN%20users%20u%20on%20sle.steam_id%20%3D%20u.steam_id%0AWHERE%20level_id%20IN%20(SELECT%20level_id%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20FROM%20sprint_leaderboard_entries%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20GROUP%20BY%20level_id%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20HAVING%20COUNT(*)%20%3D%201)>)
 
 ---
 
@@ -122,7 +201,7 @@ ORDER BY t1.sprint_entries DESC
 LIMIT 100
 ```
 
-[Link](https://distance-db-sql.seekr.pw/?query=--%20Players%20with%20most%20sprint%20leaderboard%20times%2C%20and%20what%20percent%20of%20all%20levels%20they%27ve%20set%20a%20time%20on%0ASELECT%20name%2C%0A%20%20%20%20%20%20%20t1.sprint_entries%2C%0A%20%20%20%20%20%20%20t1.sprint_entries%3A%3Areal%20%2F%20(SELECT%20COUNT(*)%20FROM%20levels%20WHERE%20is_sprint)%3A%3Areal%20percent%0AFROM%20users%0A%20%20%20%20%20%20%20%20%20JOIN%20(SELECT%20users.steam_id%2C%20COUNT(*)%20sprint_entries%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20FROM%20users%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20JOIN%20sprint_leaderboard_entries%20sle%20on%20users.steam_id%20%3D%20sle.steam_id%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20GROUP%20BY%20users.steam_id)%20t1%20ON%20users.steam_id%20%3D%20t1.steam_id%0AORDER%20BY%20t1.sprint_entries%20DESC%0ALIMIT%20100)
+[Link](<https://distance-db-sql.seekr.pw/?query=--%20Players%20with%20most%20sprint%20leaderboard%20times%2C%20and%20what%20percent%20of%20all%20levels%20they%27ve%20set%20a%20time%20on%0ASELECT%20name%2C%0A%20%20%20%20%20%20%20t1.sprint_entries%2C%0A%20%20%20%20%20%20%20t1.sprint_entries%3A%3Areal%20%2F%20(SELECT%20COUNT(*)%20FROM%20levels%20WHERE%20is_sprint)%3A%3Areal%20percent%0AFROM%20users%0A%20%20%20%20%20%20%20%20%20JOIN%20(SELECT%20users.steam_id%2C%20COUNT(*)%20sprint_entries%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20FROM%20users%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20JOIN%20sprint_leaderboard_entries%20sle%20on%20users.steam_id%20%3D%20sle.steam_id%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20GROUP%20BY%20users.steam_id)%20t1%20ON%20users.steam_id%20%3D%20t1.steam_id%0AORDER%20BY%20t1.sprint_entries%20DESC%0ALIMIT%20100>)
 
 ---
 
@@ -152,7 +231,7 @@ FROM (SELECT *
 ORDER BY rank DESC
 ```
 
-[Link](https://distance-db-sql.seekr.pw/?query=--%20The%20ranking%20on%20all%20official%20sprint%20levels%20of%20a%20particular%20player%2C%20starting%20from%20worst%0ASELECT%20name%2C%20rank%0AFROM%20(SELECT%20*%0A%20%20%20%20%20%20FROM%20levels%0A%20%20%20%20%20%20WHERE%20is_sprint%0A%20%20%20%20%20%20%20%20AND%20id%20NOT%20IN%20(SELECT%20level_id%20FROM%20workshop_level_details))%20official_sprint%0A%20%20%20%20%20%20%20%20%20LEFT%20JOIN%20(SELECT%20*%20FROM%20sprint_leaderboard_entries%20WHERE%20steam_id%20%3D%2076561198032726698)%20sle%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20on%20sle.level_id%20%3D%20official_sprint.id%0AORDER%20BY%20rank%20DESC)
+[Link](<https://distance-db-sql.seekr.pw/?query=--%20The%20ranking%20on%20all%20official%20sprint%20levels%20of%20a%20particular%20player%2C%20starting%20from%20worst%0ASELECT%20name%2C%20rank%0AFROM%20(SELECT%20*%0A%20%20%20%20%20%20FROM%20levels%0A%20%20%20%20%20%20WHERE%20is_sprint%0A%20%20%20%20%20%20%20%20AND%20id%20NOT%20IN%20(SELECT%20level_id%20FROM%20workshop_level_details))%20official_sprint%0A%20%20%20%20%20%20%20%20%20LEFT%20JOIN%20(SELECT%20*%20FROM%20sprint_leaderboard_entries%20WHERE%20steam_id%20%3D%2076561198032726698)%20sle%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20on%20sle.level_id%20%3D%20official_sprint.id%0AORDER%20BY%20rank%20DESC>)
 
 ---
 
@@ -181,4 +260,3 @@ LIMIT 100
 [Link](https://distance-db-sql.seekr.pw/?query=--%20Least-recently%20updated%20maps%20on%20the%20workshop%0ASELECT%20name%2C%20time_updated%2C%20is_sprint%2C%20is_challenge%2C%20is_stunt%0AFROM%20levels%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20levels.id%20%3D%20wld.level_id%0AORDER%20BY%20time_updated%0ALIMIT%20100)
 
 ---
-
