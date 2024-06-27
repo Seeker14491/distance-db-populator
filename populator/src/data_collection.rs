@@ -262,7 +262,7 @@ async fn get_mode_entries(
                     distance_util::create_leaderboard_name_string(&level.name, game_mode, None)
                 };
 
-            leaderboard_name_string.map(|s| (i, s))
+            leaderboard_name_string.ok().map(|s| (i, s))
         })
         .collect();
 
