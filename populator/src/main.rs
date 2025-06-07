@@ -7,7 +7,7 @@
 )]
 
 use crate::common::DistanceData;
-use anyhow::{anyhow, Context, Error};
+use anyhow::{Context, Error, anyhow};
 use distance_steam_data_client::Client as GrpcClient;
 use futures::prelude::*;
 use std::env;

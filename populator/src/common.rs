@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{DisplayFromStr, serde_as};
 
 #[derive(Debug, Clone, Default)]
 pub struct DistanceData {

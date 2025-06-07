@@ -5,7 +5,7 @@
     unused_qualifications
 )]
 
-use anyhow::{format_err, Context, Error, Result};
+use anyhow::{Context, Error, Result, format_err};
 use futures::pin_mut;
 use log::{error, info, warn};
 use std::fmt::Display;
@@ -55,9 +55,9 @@ async fn main() {
 
 fn print_error<E: Into<Error>>(e: E) {
     let e = e.into();
-    error!("error: {}", e);
+    error!("error: {e}");
     while let Some(e) = e.source() {
-        error!(" caused by: {}", e);
+        error!(" caused by: {e}");
     }
 }
 

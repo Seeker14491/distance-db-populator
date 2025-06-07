@@ -2,11 +2,11 @@
 name = "distance-db-populator-manager"
 version = "0.1.0"
 authors = ["Brian Bowman <seeker14491@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 anyhow = "1.0"
-color-backtrace = "0.6"
+color-backtrace = "0.7"
 env_logger = "0.11"
 futures = "0.3"
 log = "0.4"

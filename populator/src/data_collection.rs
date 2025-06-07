@@ -7,13 +7,13 @@ use az::Az;
 use distance_steam_data_client::{Client as GrpcClient, LeaderboardEntry};
 use distance_util::LeaderboardGameMode;
 use futures::stream::{self};
-use futures::{future, StreamExt, TryStreamExt};
+use futures::{StreamExt, TryStreamExt, future};
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use serde_json::Value as JsonValue;
 use std::collections::{HashMap, HashSet};
 use tap::{Pipe, TapFallible};
-use tracing::{event, Level as TracingLevel};
+use tracing::{Level as TracingLevel, event};
 
 pub async fn run(
     web_client: reqwest::Client,
