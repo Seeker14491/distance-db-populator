@@ -4,12 +4,7 @@ CREATE TABLE
         name character varying NOT NULL,
         is_sprint boolean NOT NULL,
         is_challenge boolean NOT NULL,
-        is_stunt boolean NOT NULL,
-        CHECK (
-            is_sprint
-            OR is_challenge
-            OR is_stunt
-        )
+        is_stunt boolean NOT NULL
     );
 
 CREATE TABLE
