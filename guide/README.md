@@ -1,6 +1,6 @@
 # Distance DB guide
 
-The Distance database contains data on all sprint, challenge, and stunt maps in Distance. You can perform queries to the database at [this link](https://distance-db-sql.seekr.pw/). Queries are written in the SQL language, specifically the dialect used by PostgreSQL. If you don't know SQL, or need a refresher, I found [sqltutorial.org](https://www.sqltutorial.org/) helpful. Here is a view of the database schema:
+The Distance database contains data on all official and workshop levels Distance. You can perform queries to the database at [this link](https://distance-db-sql.seekr.pw/). Queries are written in the SQL language, specifically the dialect used by PostgreSQL. If you don't know SQL, or need a refresher, I found [sqltutorial.org](https://www.sqltutorial.org/) helpful. Here is a view of the database schema:
 
 ![](schema.svg)
 

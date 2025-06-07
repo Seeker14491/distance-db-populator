@@ -66,10 +66,7 @@ pub async fn run(
         let is_challenge = details.tags.iter().any(|x| x.tag == "Challenge");
         let is_stunt = details.tags.iter().any(|x| x.tag == "Stunt");
 
-        if (is_sprint || is_challenge || is_stunt)
-            && !details.filename.is_empty()
-            && details.file_size > 0
-        {
+        if !details.filename.is_empty() && details.file_size > 0 {
             Some(Level {
                 id: details.published_file_id,
                 name: details.title.clone(),
