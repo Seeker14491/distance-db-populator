@@ -4,7 +4,10 @@ CREATE TABLE
         name character varying NOT NULL,
         is_sprint boolean NOT NULL,
         is_challenge boolean NOT NULL,
-        is_stunt boolean NOT NULL
+        is_stunt boolean NOT NULL,
+        sprint_leaderboard_hash bigint,
+        challenge_leaderboard_hash bigint,
+        stunt_leaderboard_hash bigint
     );
 
 CREATE TABLE

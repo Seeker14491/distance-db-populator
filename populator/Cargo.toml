@@ -12,6 +12,7 @@ distance-steam-data-client = { git = "https://github.com/Seeker14491/DistanceSte
 distance-util = { git = "https://github.com/Seeker14491/distance-util.git", tag = "v0.3.0" }
 dotenv = "0.15"
 futures = "0.3"
+fxhash = "0.2"
 indicatif = "0.17"
 itertools = "0.14"
 num-traits = "0.2"

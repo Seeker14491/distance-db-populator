@@ -1,23 +1,50 @@
-use crate::common::DistanceData;
+use crate::common::{DistanceData, ScoreLeaderboardEntry, TimeLeaderboardEntry};
 use anyhow::Error;
 use futures::prelude::*;
 use futures::stream::{self, FuturesOrdered, FuturesUnordered};
+use fxhash::FxHasher;
 use itertools::Itertools;
+use std::hash::{Hash, Hasher};
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::Type as PgType;
+
+fn compute_sprint_hash(entries: &[TimeLeaderboardEntry]) -> i64 {
+    let mut hasher = FxHasher::default();
+    for entry in entries {
+        entry.steam_id.hash(&mut hasher);
+        entry.time.hash(&mut hasher);
+        entry.has_replay.hash(&mut hasher);
+    }
+    hasher.finish() as i64
+}
+
+fn compute_challenge_hash(entries: &[TimeLeaderboardEntry]) -> i64 {
+    let mut hasher = FxHasher::default();
+    for entry in entries {
+        entry.steam_id.hash(&mut hasher);
+        entry.time.hash(&mut hasher);
+        entry.has_replay.hash(&mut hasher);
+    }
+    hasher.finish() as i64
+}
+
+fn compute_stunt_hash(entries: &[ScoreLeaderboardEntry]) -> i64 {
+    let mut hasher = FxHasher::default();
+    for entry in entries {
+        entry.steam_id.hash(&mut hasher);
+        entry.score.hash(&mut hasher);
+        entry.has_replay.hash(&mut hasher);
+    }
+    hasher.finish() as i64
+}
 
 pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<(), Error> {
     let mut transaction_owned = db.transaction().await?;
     let transaction = &transaction_owned;
 
-    println!("Clearing the database");
-    transaction
-        .batch_execute("TRUNCATE levels, users CASCADE")
-        .await?;
-
-    println!("Inserting users into the database");
+    println!("Updating users in the database");
     let stmt = &transaction
-        .prepare("INSERT INTO users VALUES ($1, $2) ON CONFLICT DO NOTHING")
+        .prepare("INSERT INTO users VALUES ($1, $2) ON CONFLICT (steam_id) DO UPDATE SET name = EXCLUDED.name")
         .await?;
     stream::iter(&data.users)
         .map(Ok)
@@ -29,16 +56,16 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
         })
         .await?;
 
-    println!("Inserting levels into the database");
+    println!("Updating levels in the database");
     let stmt = &transaction
-        .prepare("INSERT INTO levels (id, name, is_sprint, is_challenge, is_stunt) VALUES ($1, $2, $3, $4, $5)")
+        .prepare("INSERT INTO levels (id, name, is_sprint, is_challenge, is_stunt) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, is_sprint = EXCLUDED.is_sprint, is_challenge = EXCLUDED.is_challenge, is_stunt = EXCLUDED.is_stunt")
         .await?;
     let level_ids: Vec<_> = data
         .levels
         .iter()
         .map(|level| async move {
             transaction
-                .query(
+                .execute(
                     stmt,
                     &[
                         &level.id,
@@ -56,9 +83,25 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
         .try_collect()
         .await?;
 
-    println!("Inserting the rest of the data into the database");
+    println!("Updating workshop level details and leaderboard entries");
     let wld_stmt = &transaction
-        .prepare("INSERT INTO workshop_level_details VALUES ($1, $2, $3)")
+        .prepare("INSERT INTO workshop_level_details VALUES ($1, $2, $3) ON CONFLICT (level_id) DO UPDATE SET raw_details = EXCLUDED.raw_details, tags = EXCLUDED.tags")
+        .await?;
+
+    // Prepare statements for checking existing leaderboard hashes
+    let hash_stmt = &transaction
+        .prepare("SELECT sprint_leaderboard_hash, challenge_leaderboard_hash, stunt_leaderboard_hash FROM levels WHERE id = $1")
+        .await?;
+
+    // Prepare statements for updating hashes
+    let update_sprint_hash_stmt = &transaction
+        .prepare("UPDATE levels SET sprint_leaderboard_hash = $2 WHERE id = $1")
+        .await?;
+    let update_challenge_hash_stmt = &transaction
+        .prepare("UPDATE levels SET challenge_leaderboard_hash = $2 WHERE id = $1")
+        .await?;
+    let update_stunt_hash_stmt = &transaction
+        .prepare("UPDATE levels SET stunt_leaderboard_hash = $2 WHERE id = $1")
         .await?;
 
     let futs = FuturesUnordered::new();
@@ -80,113 +123,169 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
             futs.push(fut.boxed());
         }
 
-        // Sprint entries
-        {
-            let fut = async move {
-                let sink = transaction
-                    .copy_in("COPY sprint_leaderboard_entries FROM STDIN WITH (FORMAT binary)")
-                    .await?;
-                let mut writer = Box::pin(BinaryCopyInWriter::new(
-                    sink,
-                    &[
-                        PgType::INT8,
-                        PgType::INT8,
-                        PgType::INT4,
-                        PgType::INT4,
-                        PgType::BOOL,
-                    ],
-                ));
-                for entry in &level.sprint_entries {
-                    writer
-                        .as_mut()
-                        .write(&[
-                            &level_id,
-                            &(entry.steam_id as i64),
-                            &entry.time,
-                            &(entry.rank as i32),
-                            &entry.has_replay,
-                        ])
+        // Get existing hashes for this level
+        let fut = async move {
+            let existing_hashes = transaction.query_one(hash_stmt, &[level_id]).await?;
+
+            let existing_sprint_hash: Option<i64> = existing_hashes.get(0);
+            let existing_challenge_hash: Option<i64> = existing_hashes.get(1);
+            let existing_stunt_hash: Option<i64> = existing_hashes.get(2);
+
+            // Sprint entries - only update if hash differs
+            if level.is_sprint {
+                let new_sprint_hash = compute_sprint_hash(&level.sprint_entries);
+                if existing_sprint_hash.as_ref() != Some(&new_sprint_hash) {
+                    // Delete existing entries for this level
+                    transaction
+                        .execute(
+                            "DELETE FROM sprint_leaderboard_entries WHERE level_id = $1",
+                            &[level_id],
+                        )
+                        .await?;
+
+                    if !level.sprint_entries.is_empty() {
+                        // Insert new entries
+                        let sink = transaction
+                            .copy_in(
+                                "COPY sprint_leaderboard_entries FROM STDIN WITH (FORMAT binary)",
+                            )
+                            .await?;
+                        let mut writer = Box::pin(BinaryCopyInWriter::new(
+                            sink,
+                            &[
+                                PgType::INT8,
+                                PgType::INT8,
+                                PgType::INT4,
+                                PgType::INT4,
+                                PgType::BOOL,
+                            ],
+                        ));
+                        for entry in &level.sprint_entries {
+                            writer
+                                .as_mut()
+                                .write(&[
+                                    &level_id,
+                                    &(entry.steam_id as i64),
+                                    &entry.time,
+                                    &(entry.rank as i32),
+                                    &entry.has_replay,
+                                ])
+                                .await?;
+                        }
+                        writer.as_mut().finish().await?;
+                    }
+
+                    // Update the hash
+                    transaction
+                        .execute(update_sprint_hash_stmt, &[level_id, &new_sprint_hash])
                         .await?;
                 }
-                writer.as_mut().finish().await?;
+            }
 
-                Ok(())
-            };
+            // Challenge entries - only update if hash differs
+            if level.is_challenge {
+                let new_challenge_hash = compute_challenge_hash(&level.challenge_entries);
+                if existing_challenge_hash.as_ref() != Some(&new_challenge_hash) {
+                    // Delete existing entries for this level
+                    transaction
+                        .execute(
+                            "DELETE FROM challenge_leaderboard_entries WHERE level_id = $1",
+                            &[level_id],
+                        )
+                        .await?;
 
-            futs.push(fut.boxed());
-        }
+                    if !level.challenge_entries.is_empty() {
+                        // Insert new entries
+                        let sink = transaction
+                            .copy_in("COPY challenge_leaderboard_entries FROM STDIN WITH (FORMAT binary)")
+                            .await?;
+                        let mut writer = Box::pin(BinaryCopyInWriter::new(
+                            sink,
+                            &[
+                                PgType::INT8,
+                                PgType::INT8,
+                                PgType::INT4,
+                                PgType::INT4,
+                                PgType::BOOL,
+                            ],
+                        ));
+                        for entry in &level.challenge_entries {
+                            writer
+                                .as_mut()
+                                .write(&[
+                                    &level_id,
+                                    &(entry.steam_id as i64),
+                                    &entry.time,
+                                    &(entry.rank as i32),
+                                    &entry.has_replay,
+                                ])
+                                .await?;
+                        }
+                        writer.as_mut().finish().await?;
+                    }
 
-        // Challenge entries
-        {
-            let fut = async move {
-                let sink = transaction
-                    .copy_in("COPY challenge_leaderboard_entries FROM STDIN WITH (FORMAT binary)")
-                    .await?;
-                let mut writer = Box::pin(BinaryCopyInWriter::new(
-                    sink,
-                    &[
-                        PgType::INT8,
-                        PgType::INT8,
-                        PgType::INT4,
-                        PgType::INT4,
-                        PgType::BOOL,
-                    ],
-                ));
-                for entry in &level.challenge_entries {
-                    writer
-                        .as_mut()
-                        .write(&[
-                            &level_id,
-                            &(entry.steam_id as i64),
-                            &entry.time,
-                            &(entry.rank as i32),
-                            &entry.has_replay,
-                        ])
+                    // Update the hash
+                    transaction
+                        .execute(update_challenge_hash_stmt, &[level_id, &new_challenge_hash])
                         .await?;
                 }
-                writer.as_mut().finish().await?;
+            }
 
-                Ok(())
-            };
+            // Stunt entries - only update if hash differs
+            if level.is_stunt {
+                let new_stunt_hash = compute_stunt_hash(&level.stunt_entries);
+                if existing_stunt_hash.as_ref() != Some(&new_stunt_hash) {
+                    // Delete existing entries for this level
+                    transaction
+                        .execute(
+                            "DELETE FROM stunt_leaderboard_entries WHERE level_id = $1",
+                            &[level_id],
+                        )
+                        .await?;
 
-            futs.push(fut.boxed());
-        }
+                    if !level.stunt_entries.is_empty() {
+                        // Insert new entries
+                        let sink = transaction
+                            .copy_in(
+                                "COPY stunt_leaderboard_entries FROM STDIN WITH (FORMAT binary)",
+                            )
+                            .await?;
+                        let mut writer = Box::pin(BinaryCopyInWriter::new(
+                            sink,
+                            &[
+                                PgType::INT8,
+                                PgType::INT8,
+                                PgType::INT4,
+                                PgType::INT4,
+                                PgType::BOOL,
+                            ],
+                        ));
+                        for entry in &level.stunt_entries {
+                            writer
+                                .as_mut()
+                                .write(&[
+                                    &level_id,
+                                    &(entry.steam_id as i64),
+                                    &entry.score,
+                                    &(entry.rank as i32),
+                                    &entry.has_replay,
+                                ])
+                                .await?;
+                        }
+                        writer.as_mut().finish().await?;
+                    }
 
-        // Stunt entries
-        {
-            let fut = async move {
-                let sink = transaction
-                    .copy_in("COPY stunt_leaderboard_entries FROM STDIN WITH (FORMAT binary)")
-                    .await?;
-                let mut writer = Box::pin(BinaryCopyInWriter::new(
-                    sink,
-                    &[
-                        PgType::INT8,
-                        PgType::INT8,
-                        PgType::INT4,
-                        PgType::INT4,
-                        PgType::BOOL,
-                    ],
-                ));
-                for entry in &level.stunt_entries {
-                    writer
-                        .as_mut()
-                        .write(&[
-                            &level_id,
-                            &(entry.steam_id as i64),
-                            &entry.score,
-                            &(entry.rank as i32),
-                            &entry.has_replay,
-                        ])
+                    // Update the hash
+                    transaction
+                        .execute(update_stunt_hash_stmt, &[level_id, &new_stunt_hash])
                         .await?;
                 }
-                writer.as_mut().finish().await?;
+            }
 
-                Ok(())
-            };
+            Ok(())
+        };
 
-            futs.push(fut.boxed());
-        }
+        futs.push(fut.boxed());
     }
 
     futs.try_for_each(|_| future::ok(())).await?;
