@@ -3,7 +3,6 @@ use anyhow::Error;
 use futures::prelude::*;
 use futures::stream::{self, FuturesOrdered, FuturesUnordered};
 use fxhash::FxHasher;
-use itertools::Itertools;
 use std::hash::{Hash, Hasher};
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::Type as PgType;
@@ -114,7 +113,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                         &[
                             level_id,
                             json,
-                            &details.tags.iter().map(|tag| &tag.tag).join(",").as_str(),
+                            &details.tags.iter().map(|tag| &tag.tag).collect::<Vec<_>>(),
                         ],
                     )
                     .map_ok(drop)

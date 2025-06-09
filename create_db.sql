@@ -22,31 +22,14 @@ CREATE TABLE
             level_id = (raw_details ->> 'publishedfileid')::bigint
         ),
         raw_details jsonb NOT NULL,
-        tags character varying NOT NULL,
+        tags character varying ARRAY NOT NULL,
         author_steam_id bigint GENERATED ALWAYS AS ((raw_details ->> 'creator')::bigint) STORED REFERENCES users,
-        description character varying GENERATED ALWAYS AS (raw_details ->> 'file_description') STORED NOT NULL,
         time_created timestamp with time zone GENERATED ALWAYS AS (
             to_timestamp((raw_details ->> 'time_created')::bigint)
         ) STORED NOT NULL,
         time_updated timestamp with time zone GENERATED ALWAYS AS (
             to_timestamp((raw_details ->> 'time_updated')::bigint)
-        ) STORED NOT NULL,
-        visibility character varying GENERATED ALWAYS AS (
-            (ARRAY['public', 'friends_only', 'private']) [(raw_details ->> 'visibility')::integer + 1]
-        ) STORED NOT NULL,
-        preview_url character varying GENERATED ALWAYS AS (raw_details ->> 'preview_url') STORED NOT NULL,
-        file_name character varying GENERATED ALWAYS AS (raw_details ->> 'filename') STORED NOT NULL,
-        file_size integer GENERATED ALWAYS AS ((raw_details ->> 'file_size')::integer) STORED NOT NULL,
-        votes_up integer GENERATED ALWAYS AS (
-            (raw_details -> 'vote_data' ->> 'votes_up')::integer
-        ) STORED NOT NULL CHECK (votes_up >= 0),
-        votes_down integer GENERATED ALWAYS AS (
-            (raw_details -> 'vote_data' ->> 'votes_down')::integer
-        ) STORED NOT NULL CHECK (votes_down >= 0),
-        score real GENERATED ALWAYS AS ((raw_details -> 'vote_data' ->> 'score')::real) STORED NOT NULL CHECK (
-            score >= 0.0
-            AND score <= 1.0
-        )
+        ) STORED NOT NULL
     );
 
 CREATE TABLE

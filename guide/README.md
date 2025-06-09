@@ -102,57 +102,46 @@ LIMIT 100
 
 ```sql
 -- Authors with highest average level score
-SELECT name,
-       AVG(score) avg_score,
-       COUNT(*)   levels_published
-FROM users
-         JOIN workshop_level_details wld on users.steam_id = wld.author_steam_id
-GROUP BY steam_id
-ORDER BY avg_score DESC
-LIMIT 100
+SELECT name, AVG((raw_details -> 'vote_data' -> 'score')::real) AS avg_score, COUNT(*) AS levels_published
+  FROM users
+           JOIN workshop_level_details wld
+           ON users.steam_id = wld.author_steam_id
+ GROUP BY steam_id
+ ORDER BY avg_score DESC
+ LIMIT 100
 ```
 
-[Link](<https://distance-db-sql.seekr.pw/?query=--%20Authors%20with%20highest%20average%20level%20score%0ASELECT%20name%2C%0A%20%20%20%20%20%20%20AVG(score)%20avg_score%2C%0A%20%20%20%20%20%20%20COUNT(*)%20%20%20levels_published%0AFROM%20users%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20users.steam_id%20%3D%20wld.author_steam_id%0AGROUP%20BY%20steam_id%0AORDER%20BY%20avg_score%20DESC%0ALIMIT%20100>)
-
----
-
-```sql
--- Maps ordered by score
-SELECT name,
-       score
-FROM levels
-         JOIN workshop_level_details wld on levels.id = wld.level_id
-ORDER BY score DESC
-LIMIT 100
-```
-
-[Link](https://distance-db-sql.seekr.pw/?query=--%20Maps%20ordered%20by%20score%0ASELECT%20name%2C%0A%20%20%20%20%20%20%20score%0AFROM%20levels%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20levels.id%20%3D%20wld.level_id%0AORDER%20BY%20score%20DESC%0ALIMIT%20100)
+[Link](<https://distance-db-sql.seekr.pw/?query=SELECT%20name%2C%20AVG((raw_details%20-%3E%20%27vote_data%27%20-%3E%20%27score%27)%3A%3Areal)%20AS%20avg_score%2C%20COUNT(*)%20AS%20levels_published%0A%20%20FROM%20users%0A%20%20%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%0A%20%20%20%20%20%20%20%20%20%20%20ON%20users.steam_id%20%3D%20wld.author_steam_id%0A%20GROUP%20BY%20steam_id%0A%20ORDER%20BY%20avg_score%20DESC%0A%20LIMIT%20100>)
 
 ---
 
 ```sql
 -- Maps ordered by upvotes - downvotes
 SELECT name,
-       votes_up - votes_down "upvotes - downvotes"
-FROM levels
-         JOIN workshop_level_details wld on levels.id = wld.level_id
-ORDER BY "upvotes - downvotes" DESC
-LIMIT 100
+       (raw_details -> 'vote_data' -> 'votes_up')::integer -
+       (raw_details -> 'vote_data' -> 'votes_down')::integer AS "upvotes - downvotes"
+  FROM levels
+           JOIN workshop_level_details wld
+           ON levels.id = wld.level_id
+ ORDER BY "upvotes - downvotes" DESC
+ LIMIT 100
 ```
 
-[Link](https://distance-db-sql.seekr.pw/?query=--%20Maps%20ordered%20by%20upvotes%20-%20downvotes%0ASELECT%20name%2C%0A%20%20%20%20%20%20%20votes_up%20-%20votes_down%20%22upvotes%20-%20downvotes%22%0AFROM%20levels%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20levels.id%20%3D%20wld.level_id%0AORDER%20BY%20%22upvotes%20-%20downvotes%22%20DESC%0ALIMIT%20100)
+[Link](https://distance-db-sql.seekr.pw/?query=SELECT%20name%2C%0A%20%20%20%20%20%20%20(raw_details%20-%3E%20%27vote_data%27%20-%3E%20%27votes_up%27)%3A%3Ainteger%20-%0A%20%20%20%20%20%20%20(raw_details%20-%3E%20%27vote_data%27%20-%3E%20%27votes_down%27)%3A%3Ainteger%20AS%20%22upvotes%20-%20downvotes%22%0A%20%20FROM%20levels%0A%20%20%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%0A%20%20%20%20%20%20%20%20%20%20%20ON%20levels.id%20%3D%20wld.level_id%0A%20ORDER%20BY%20%22upvotes%20-%20downvotes%22%20DESC%0A%20LIMIT%20100)
 
 ---
 
 ```sql
 -- Maps with the default description "An awesome community level"
 SELECT name
-FROM levels
-         JOIN workshop_level_details wld on levels.id = wld.level_id
-WHERE description = 'An awesome community level'
+  FROM levels
+           JOIN workshop_level_details wld
+           ON levels.id = wld.level_id
+ WHERE raw_details ->> 'file_description' = 'An awesome community level'
+ ORDER BY name
 ```
 
-[Link](https://distance-db-sql.seekr.pw/?query=--%20Maps%20with%20the%20default%20description%20%22An%20awesome%20community%20level%22%0ASELECT%20name%0AFROM%20levels%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20levels.id%20%3D%20wld.level_id%0AWHERE%20description%20%3D%20%27An%20awesome%20community%20level%27)
+[Link](https://distance-db-sql.seekr.pw/?query=SELECT%20name%0A%20%20FROM%20levels%0A%20%20%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%0A%20%20%20%20%20%20%20%20%20%20%20ON%20levels.id%20%3D%20wld.level_id%0A%20WHERE%20raw_details%20-%3E%3E%20%27file_description%27%20%3D%20%27An%20awesome%20community%20level%27%0A%20ORDER%20BY%20name)
 
 ---
 
