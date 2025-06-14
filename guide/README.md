@@ -102,7 +102,7 @@ LIMIT 100
 
 ```sql
 -- Authors with highest average level score
-SELECT name, AVG((raw_details -> 'vote_data' -> 'score')::real) AS avg_score, COUNT(*) AS levels_published
+SELECT name, AVG(raw_details['vote_data']['score']::real) AS avg_score, COUNT(*) AS levels_published
   FROM users
            JOIN workshop_level_details wld
            ON users.steam_id = wld.author_steam_id
@@ -111,15 +111,15 @@ SELECT name, AVG((raw_details -> 'vote_data' -> 'score')::real) AS avg_score, CO
  LIMIT 100
 ```
 
-[Link](<https://distance-db-sql.seekr.pw/?query=SELECT%20name%2C%20AVG((raw_details%20-%3E%20%27vote_data%27%20-%3E%20%27score%27)%3A%3Areal)%20AS%20avg_score%2C%20COUNT(*)%20AS%20levels_published%0A%20%20FROM%20users%0A%20%20%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%0A%20%20%20%20%20%20%20%20%20%20%20ON%20users.steam_id%20%3D%20wld.author_steam_id%0A%20GROUP%20BY%20steam_id%0A%20ORDER%20BY%20avg_score%20DESC%0A%20LIMIT%20100>)
+[Link](<https://distance-db-sql.seekr.pw/?query=SELECT%20name%2C%20AVG(raw_details%5B%27vote_data%27%5D%5B%27score%27%5D%3A%3Areal)%20AS%20avg_score%2C%20COUNT(*)%20AS%20levels_published%0A%20%20FROM%20users%0A%20%20%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%0A%20%20%20%20%20%20%20%20%20%20%20ON%20users.steam_id%20%3D%20wld.author_steam_id%0A%20GROUP%20BY%20steam_id%0A%20ORDER%20BY%20avg_score%20DESC%0A%20LIMIT%20100>)
 
 ---
 
 ```sql
 -- Maps ordered by upvotes - downvotes
 SELECT name,
-       (raw_details -> 'vote_data' -> 'votes_up')::integer -
-       (raw_details -> 'vote_data' -> 'votes_down')::integer AS "upvotes - downvotes"
+       raw_details['vote_data']['votes_up']::integer -
+       raw_details['vote_data']['votes_down']::integer AS "upvotes - downvotes"
   FROM levels
            JOIN workshop_level_details wld
            ON levels.id = wld.level_id
@@ -127,7 +127,7 @@ SELECT name,
  LIMIT 100
 ```
 
-[Link](https://distance-db-sql.seekr.pw/?query=SELECT%20name%2C%0A%20%20%20%20%20%20%20(raw_details%20-%3E%20%27vote_data%27%20-%3E%20%27votes_up%27)%3A%3Ainteger%20-%0A%20%20%20%20%20%20%20(raw_details%20-%3E%20%27vote_data%27%20-%3E%20%27votes_down%27)%3A%3Ainteger%20AS%20%22upvotes%20-%20downvotes%22%0A%20%20FROM%20levels%0A%20%20%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%0A%20%20%20%20%20%20%20%20%20%20%20ON%20levels.id%20%3D%20wld.level_id%0A%20ORDER%20BY%20%22upvotes%20-%20downvotes%22%20DESC%0A%20LIMIT%20100)
+[Link](https://distance-db-sql.seekr.pw/?query=SELECT%20name%2C%0A%20%20%20%20%20%20%20raw_details%5B%27vote_data%27%5D%5B%27votes_up%27%5D%3A%3Ainteger%20-%0A%20%20%20%20%20%20%20raw_details%5B%27vote_data%27%5D%5B%27votes_down%27%5D%3A%3Ainteger%20AS%20%22upvotes%20-%20downvotes%22%0A%20%20FROM%20levels%0A%20%20%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%0A%20%20%20%20%20%20%20%20%20%20%20ON%20levels.id%20%3D%20wld.level_id%0A%20ORDER%20BY%20%22upvotes%20-%20downvotes%22%20DESC%0A%20LIMIT%20100)
 
 ---
 
