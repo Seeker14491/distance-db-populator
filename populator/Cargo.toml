@@ -13,13 +13,10 @@ distance-util = { git = "https://github.com/Seeker14491/distance-util.git", tag 
 dotenv = "0.15"
 futures = "0.3"
 fxhash = "0.2"
-indicatif = "0.17"
+indicatif = "0.18"
 itertools = "0.14"
 num-traits = "0.2"
-reqwest = { version = "0.12", default-features = false, features = [
-  "gzip",
-  "rustls-tls",
-] }
+reqwest = { version = "0.13", features = ["gzip"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_with = "3"
