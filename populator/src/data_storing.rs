@@ -4,6 +4,7 @@ use futures::prelude::*;
 use futures::stream::{self, FuturesOrdered, FuturesUnordered};
 use fxhash::FxHasher;
 use std::hash::{Hash, Hasher};
+use std::pin::pin;
 use tokio_postgres::binary_copy::BinaryCopyInWriter;
 use tokio_postgres::types::Type as PgType;
 
@@ -149,7 +150,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                                 "COPY sprint_leaderboard_entries FROM STDIN WITH (FORMAT binary)",
                             )
                             .await?;
-                        let mut writer = Box::pin(BinaryCopyInWriter::new(
+                        let mut writer = pin!(BinaryCopyInWriter::new(
                             sink,
                             &[
                                 PgType::INT8,
@@ -198,7 +199,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                         let sink = transaction
                             .copy_in("COPY challenge_leaderboard_entries FROM STDIN WITH (FORMAT binary)")
                             .await?;
-                        let mut writer = Box::pin(BinaryCopyInWriter::new(
+                        let mut writer = pin!(BinaryCopyInWriter::new(
                             sink,
                             &[
                                 PgType::INT8,
@@ -249,7 +250,7 @@ pub async fn run(db: &mut tokio_postgres::Client, data: DistanceData) -> Result<
                                 "COPY stunt_leaderboard_entries FROM STDIN WITH (FORMAT binary)",
                             )
                             .await?;
-                        let mut writer = Box::pin(BinaryCopyInWriter::new(
+                        let mut writer = pin!(BinaryCopyInWriter::new(
                             sink,
                             &[
                                 PgType::INT8,
