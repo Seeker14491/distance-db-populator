@@ -83,6 +83,14 @@ The `workshop_level_details` table contains a `raw_details` column which holds a
 
 </details>
 
+The `level_file_data` table contains data extracted from the level file of each official and workshop level with a leaderboard, currently its medal requirements:
+
+- `has_sprint`, `has_challenge`, `has_stunt`: the modes the game offers the level in, which the medals are for. For workshop levels these come from the level file, so they can differ from the level's tags (`levels.is_sprint` etc.).
+- `bronze_time`, `silver_time`, `gold_time`, `diamond_time`: medal times in milliseconds, comparable with leaderboard times. A run gets a medal if its time is at most the medal time. These are only set if the level has Sprint or Challenge mode enabled, and has all four medal times set (otherwise the game shows no medals).
+- `bronze_score`, `silver_score`, `gold_score`, `diamond_score`: medal scores. A run gets a medal if its score is at least the medal score. These are only set if the level has Stunt mode enabled, and has all four medal scores set.
+
+The data is kept up to date with level updates. If a level's file couldn't be downloaded or parsed, the reason is in the `error` column.
+
 ## Example queries
 
 ```sql
@@ -247,5 +255,24 @@ LIMIT 100
 ```
 
 [Link](https://distance-db-sql.seekr.pw/?query=--%20Least-recently%20updated%20maps%20on%20the%20workshop%0ASELECT%20name%2C%20time_updated%2C%20is_sprint%2C%20is_challenge%2C%20is_stunt%0AFROM%20levels%0A%20%20%20%20%20%20%20%20%20JOIN%20workshop_level_details%20wld%20on%20levels.id%20%3D%20wld.level_id%0AORDER%20BY%20time_updated%0ALIMIT%20100)
+
+---
+
+```sql
+-- Players with the most diamond medals on Sprint leaderboards
+SELECT u.name, COUNT(*) diamonds
+FROM sprint_leaderboard_entries sle
+         JOIN levels l ON l.id = sle.level_id
+         JOIN level_file_data lfd ON lfd.level_id = sle.level_id
+         JOIN users u ON u.steam_id = sle.steam_id
+WHERE l.is_sprint
+  AND lfd.has_sprint
+  AND sle.time <= lfd.diamond_time
+GROUP BY u.steam_id
+ORDER BY diamonds DESC
+LIMIT 100
+```
+
+[Link](<https://distance-db-sql.seekr.pw/?query=--%20Players%20with%20the%20most%20diamond%20medals%20on%20Sprint%20leaderboards%0ASELECT%20u.name%2C%20COUNT(*)%20diamonds%0AFROM%20sprint_leaderboard_entries%20sle%0A%20%20%20%20%20%20%20%20%20JOIN%20levels%20l%20ON%20l.id%20%3D%20sle.level_id%0A%20%20%20%20%20%20%20%20%20JOIN%20level_file_data%20lfd%20ON%20lfd.level_id%20%3D%20sle.level_id%0A%20%20%20%20%20%20%20%20%20JOIN%20users%20u%20ON%20u.steam_id%20%3D%20sle.steam_id%0AWHERE%20l.is_sprint%0A%20%20AND%20lfd.has_sprint%0A%20%20AND%20sle.time%20%3C%3D%20lfd.diamond_time%0AGROUP%20BY%20u.steam_id%0AORDER%20BY%20diamonds%20DESC%0ALIMIT%20100>)
 
 ---

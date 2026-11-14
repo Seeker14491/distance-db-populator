@@ -63,6 +63,30 @@ CREATE TABLE
     );
 
 CREATE TABLE
+    level_file_data (
+        level_id bigint PRIMARY KEY REFERENCES levels,
+        hcontent_file character varying,
+        file_sha1 character varying,
+        file_size bigint,
+        extractor_version integer,
+        extracted_at timestamp with time zone,
+        error character varying,
+        retry_at timestamp with time zone,
+        failed_hcontent_file character varying,
+        has_sprint boolean,
+        has_challenge boolean,
+        has_stunt boolean,
+        bronze_time integer,
+        silver_time integer,
+        gold_time integer,
+        diamond_time integer,
+        bronze_score integer,
+        silver_score integer,
+        gold_score integer,
+        diamond_score integer
+    );
+
+CREATE TABLE
     metadata (
         onerow_id boolean DEFAULT true PRIMARY KEY,
         last_updated timestamp with time zone,

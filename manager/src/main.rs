@@ -6,8 +6,9 @@
 )]
 
 use anyhow::{Context, Error, Result, format_err};
-use futures::pin_mut;
+use futures::{future, pin_mut};
 use log::{error, info, warn};
+use std::convert::Infallible;
 use std::fmt::Display;
 use std::process::ExitStatus;
 use std::time::{Duration, Instant};
@@ -16,6 +17,7 @@ use tokio::process::Command;
 use tokio::time;
 
 const MAX_UPDATE_DURATION: Duration = Duration::from_secs(60 * 60);
+const LEVEL_PROCESSOR_RESTART_DELAY: Duration = Duration::from_secs(10 * 60);
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
@@ -38,7 +40,10 @@ async fn main() {
         }
     };
 
-    let result = run(healthchecks_url.as_deref()).await;
+    let result = tokio::select! {
+        result = run(healthchecks_url.as_deref()) => result,
+        never = supervise_level_processor() => match never {},
+    };
 
     if let Err(e) = result {
         if let Some(url) = healthchecks_url {
@@ -56,8 +61,8 @@ async fn main() {
 fn print_error<E: Into<Error>>(e: E) {
     let e = e.into();
     error!("error: {e}");
-    while let Some(e) = e.source() {
-        error!(" caused by: {e}");
+    for cause in e.chain().skip(1) {
+        error!(" caused by: {cause}");
     }
 }
 
@@ -103,6 +108,38 @@ async fn run_distance_db_populator() -> Result<ExitStatus> {
         .context("Couldn't spawn the distance-db-populator process")?;
 
     Ok(child.wait().await?)
+}
+
+/// Keeps `distance-db-level-processor` running, independently of the populator. It runs
+/// forever, so if it exits, it's restarted after a delay. Set `LEVEL_PROCESSOR_ENABLED=false` to
+/// not run it.
+async fn supervise_level_processor() -> Infallible {
+    let enabled = env::var("LEVEL_PROCESSOR_ENABLED")
+        .map(|v| !matches!(v.trim().to_ascii_lowercase().as_str(), "0" | "false"))
+        .unwrap_or(true);
+    if !enabled {
+        info!("distance-db-level-processor is disabled");
+        future::pending::<()>().await;
+    }
+
+    loop {
+        info!("Starting distance-db-level-processor");
+        let result = async {
+            let mut child = Command::new("./distance-db-level-processor")
+                .spawn()
+                .context("Couldn't spawn the distance-db-level-processor process")?;
+
+            Ok::<_, Error>(child.wait().await?)
+        }
+        .await;
+
+        match result {
+            Ok(status) => error!("distance-db-level-processor exited ({status})"),
+            Err(e) => print_error(e),
+        }
+
+        time::sleep(LEVEL_PROCESSOR_RESTART_DELAY).await;
+    }
 }
 
 async fn healthchecks_send_ping(healthchecks_url: &str) -> Result<()> {

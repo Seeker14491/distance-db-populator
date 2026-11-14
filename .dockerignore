@@ -1,5 +1,6 @@
 *
 !populator/
 !manager/
+!level-processor/
 !Cargo.lock
 !Cargo.toml

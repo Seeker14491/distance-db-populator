@@ -1,0 +1,23 @@
+[package]
+name = "distance-db-level-processor"
+version = "0.1.0"
+authors = ["Brian Bowman <seeker14491@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+anyhow = "1"
+color-backtrace = "0.7"
+distance-bytes = { git = "https://github.com/Seeker14491/distance-bytes.git", rev = "4c155305a75276f1efd9172ab28bb1366fb79231" }
+dotenv = "0.15"
+futures = "0.3"
+reqwest = "0.13"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha1 = "0.11"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "process", "rt", "time"] }
+tokio-postgres = "0.7"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[target.'cfg(unix)'.dependencies]
+rlimit = "0.10"

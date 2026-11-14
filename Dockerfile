@@ -18,5 +18,5 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir /data
 WORKDIR /app
-COPY --from=builder /app/target/release/distance-db-populator /app/target/release/distance-db-populator-manager ./
+COPY --from=builder /app/target/release/distance-db-populator /app/target/release/distance-db-populator-manager /app/target/release/distance-db-level-processor ./
 ENTRYPOINT ["./distance-db-populator-manager"]
