@@ -83,7 +83,9 @@ CREATE TABLE
         bronze_score integer,
         silver_score integer,
         gold_score integer,
-        diamond_score integer
+        diamond_score integer,
+        CHECK (num_nulls(bronze_time, silver_time, gold_time, diamond_time) IN (0, 4)),
+        CHECK (num_nulls(bronze_score, silver_score, gold_score, diamond_score) IN (0, 4))
     );
 
 CREATE TABLE
