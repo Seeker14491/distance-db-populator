@@ -536,7 +536,7 @@ dependencies = [
 [[package]]
 name = "distance-bytes"
 version = "0.1.0"
-source = "git+https://github.com/Seeker14491/distance-bytes.git?rev=4c155305a75276f1efd9172ab28bb1366fb79231#4c155305a75276f1efd9172ab28bb1366fb79231"
+source = "git+https://github.com/Seeker14491/distance-bytes.git?rev=7a9d4791acd5c9c65221d336bacaae437a3f509d#7a9d4791acd5c9c65221d336bacaae437a3f509d"
 dependencies = [
  "ryu",
  "serde",

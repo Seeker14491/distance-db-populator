@@ -7,7 +7,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1"
 color-backtrace = "0.7"
-distance-bytes = { git = "https://github.com/Seeker14491/distance-bytes.git", rev = "4c155305a75276f1efd9172ab28bb1366fb79231" }
+distance-bytes = { git = "https://github.com/Seeker14491/distance-bytes.git", rev = "7a9d4791acd5c9c65221d336bacaae437a3f509d" }
 dotenv = "0.15"
 futures = "0.3"
 reqwest = "0.13"
